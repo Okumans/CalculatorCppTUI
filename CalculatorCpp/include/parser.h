@@ -5,6 +5,16 @@
 #include <unordered_set>
 #include <memory>
 
+class ParserSyntaxError : public std::runtime_error {
+public:
+	explicit ParserSyntaxError(const std::string& msg) : std::runtime_error("ParserSyntaxError: " + msg) {}
+};
+
+class ParserNotReadyError : public std::runtime_error {
+public:
+	explicit ParserNotReadyError(const std::string& msg) : std::runtime_error("ParserSyntaxError: " + msg) {}
+};
+
 class Parser {
 public:
 	using OperatorLevel = size_t;
@@ -36,6 +46,7 @@ private:
 	} mBracketsOperators;
 	std::unordered_map<OperatorLexeme, OperatorLevel> mOperatorLevels;
 	std::unordered_map<OperatorLexeme, OperatorEvalType> mOperatorEvalTypes;
+	bool mIsParserReady{ false };
 
 public:
 	Node* createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const;
@@ -44,4 +55,5 @@ public:
 	void setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs);
 	std::vector<GeneralLexeme> parseNumbers(const std::vector<GeneralLexeme>& lexemes) const;
 	std::string printOpertatorTree(Parser::Node* tree);
+	void parserReady();
 };

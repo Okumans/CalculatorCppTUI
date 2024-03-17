@@ -4,8 +4,6 @@
 #include <stack>
 #include <unordered_map>
 #include <unordered_set>
-#include <string_view>
-#include <memory>
 #include <cctype>
 #include "parser.h"
 #include <sstream>
@@ -51,6 +49,7 @@ static std::string_view trimLeadingZeros(const std::string& str) {
 Parser::Node::Node(const GeneralLexeme& value) : value{ value } {}
 
 void Parser::setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs) {
+	mIsParserReady = false;
 	for (const auto& [openBracket, closeBracket] : bracketPairs) {
 		mBracketsOperators.openBracketsOperators[openBracket] = closeBracket;
 		mBracketsOperators.closeBracketsOperators[closeBracket] = openBracket;
@@ -58,11 +57,13 @@ void Parser::setBracketOperators(const std::vector<std::pair<BracketLexeme, Brac
 }
 
 void Parser::setOperatorLevels(const std::vector<std::pair<OperatorLexeme, OperatorLevel>>& operatorPairs) {
+	mIsParserReady = false;
 	for (const auto& [lexeme, level] : operatorPairs)
 		mOperatorLevels[lexeme] = level;
 }
 
 void Parser::setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs) {
+	mIsParserReady = false;
 	for (const auto& [lexeme, evalType] : operatorEvalTypePairs)
 		mOperatorEvalTypes[lexeme] = evalType;
 }
@@ -84,17 +85,17 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<GeneralLexeme>& 
 			foundMinusSign = true;
 
 		// gg debug this code
-		else if (!numberBuffer.empty() && 
-			((lexeme == "." && foundDecimalPoint) || 
-				(lexeme == "-" && foundMinusSign) || 
-				(!((!result.empty() && 
-					((mOperatorEvalTypes.contains(result.back()) && 
-						(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix || 
-							mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) || 
-						mBracketsOperators.openBracketsOperators.contains(result.back()))) || 
-					result.empty())) || 
-				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) || 
-				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) || 
+		else if (!numberBuffer.empty() &&
+			((lexeme == "." && foundDecimalPoint) ||
+				(lexeme == "-" && foundMinusSign) ||
+				(!((!result.empty() &&
+					((mOperatorEvalTypes.contains(result.back()) &&
+						(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
+							mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
+						mBracketsOperators.openBracketsOperators.contains(result.back()))) ||
+					result.empty())) ||
+				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) ||
+				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) ||
 				(!std::isdigit(lexeme[0]) && !isNumber(numberBuffer)))) {
 			result.push_back(numberBuffer);
 			foundDecimalPoint = false;
@@ -111,14 +112,42 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<GeneralLexeme>& 
 	return result;
 }
 
+void Parser::parserReady() {
+	mIsParserReady = false;
+	if (mBracketsOperators.openBracketsOperators.empty())
+		throw ParserNotReadyError("Please setBracketsOperators.");
+	if (mOperatorEvalTypes.empty())
+		throw ParserNotReadyError("Please setOperatorEvalTypes.");
+	if (mOperatorLevels.empty())
+		throw ParserNotReadyError("Please setOperatorLevels.");
+	if (mOperatorEvalTypes.size() != mOperatorLevels.size())
+		throw ParserNotReadyError("Please make sure all operator set EvalType and Levels.");
+	for (const auto& [key, _] : mOperatorLevels) {
+		if (!mOperatorEvalTypes.contains(key))
+			throw ParserNotReadyError("Operator \"" + key + "\" not found in operatorEvalTypes. Please make sure all operator set EvalType and Levels, and is the same.");
+	}
+	mIsParserReady = true;
+}
+
 static void processNode(Parser::Node* operatorNode, Parser::Node* operandNode1, Parser::Node* operandNode2) {
 	operatorNode->left = operandNode1;
 	operatorNode->right = operandNode2;
 }
 
-// todo: create free memory function, for freeing the nodes
-// todo: use smartpointer insteads
+// @throws std::runtime_error if stack is empty
+template <typename T>
+static T topPopNotEmpty(std::stack<T>& stk) {
+	if (stk.empty())
+		throw ParserSyntaxError("heck if bracket is closed, or operator argument is valid.");
+	T temp = stk.top();
+	stk.pop();
+	return temp;
+}
+
 Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const {
+	if (!mIsParserReady)
+		throw ParserNotReadyError("Please run parserReady() first!, To make sure that parser is ready.");
+
 	std::stack<Node*> resultStack;
 	std::stack<GeneralLexeme> operatorStack;
 
@@ -127,24 +156,25 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 		if (strictedIsNumber(parsedLexeme)) {
 			// if is a argument of postfix operator
 			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
-				Node* operatorNode = new Node(operatorStack.top());
+				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
 				Node* prefixOperandNode = new Node(parsedLexeme);
 				operatorNode->right = prefixOperandNode;
 				resultStack.push(operatorNode);
-				operatorStack.pop();
 				continue;
 			}
 			resultStack.push(new Node(parsedLexeme));
 		}
 
 		// if stack is empty, if is open bracket, if top stack is open bracket
-		else if (!mBracketsOperators.closeBracketsOperators.contains(parsedLexeme) && (operatorStack.empty()
-			|| mBracketsOperators.openBracketsOperators.contains(parsedLexeme)
-			|| mBracketsOperators.openBracketsOperators.contains(operatorStack.top())))
+		else if (!mBracketsOperators.closeBracketsOperators.contains(parsedLexeme) &&
+			(operatorStack.empty() ||
+				mBracketsOperators.openBracketsOperators.contains(parsedLexeme) ||
+				mBracketsOperators.openBracketsOperators.contains(operatorStack.top())))
 			operatorStack.push(parsedLexeme);
 
 		// if postfix operator, ignore
-		else if (mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Postfix) {
+		else if (mOperatorEvalTypes.contains(parsedLexeme)
+			&& mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Postfix) {
 			operatorStack.push(parsedLexeme);
 			continue;
 		}
@@ -152,7 +182,7 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 		// if is a prefix operator
 		else if (mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Prefix && !resultStack.empty()) {
 			Node* operatorNode = new Node(parsedLexeme);
-			Node* prefixOperandNode = resultStack.top(); resultStack.pop();
+			Node* prefixOperandNode = topPopNotEmpty(resultStack);
 			operatorNode->left = prefixOperandNode;
 			resultStack.push(operatorNode);
 		}
@@ -161,22 +191,20 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 		else if (mBracketsOperators.closeBracketsOperators.contains(parsedLexeme)) {
 			BracketLexeme openBracket{ mBracketsOperators.closeBracketsOperators.at(parsedLexeme) };
 			while (!operatorStack.empty() && operatorStack.top() != openBracket) {
-				Node* operatorNode = new Node(operatorStack.top());
-				Node* operandNode2 = resultStack.top();  resultStack.pop();
-				Node* operandNode1 = resultStack.top();  resultStack.pop();
+				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
+				Node* operandNode2 = topPopNotEmpty(resultStack);
+				Node* operandNode1 = topPopNotEmpty(resultStack);
 				processNode(operatorNode, operandNode1, operandNode2);
 				resultStack.push(operatorNode);
-				operatorStack.pop();
 			}
 			operatorStack.pop();
 
 			// if current expression is argument of postfix operator
 			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
-				Node* operatorNode = new Node(operatorStack.top());
-				Node* prefixOperandNode = resultStack.top(); resultStack.pop();
+				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
+				Node* prefixOperandNode = topPopNotEmpty(resultStack);
 				operatorNode->right = prefixOperandNode;
 				resultStack.push(operatorNode);
-				operatorStack.pop();
 			}
 		}
 
@@ -187,27 +215,25 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 		// if current operator level is lesser than top stack
 		else if (mOperatorLevels.at(parsedLexeme) <= mOperatorLevels.at(operatorStack.top())) {
 			while (!operatorStack.empty() && mOperatorLevels.contains(operatorStack.top()) && (mOperatorLevels.at(parsedLexeme) <= mOperatorLevels.at(operatorStack.top()))) {
-				Node* operatorNode = new Node(operatorStack.top());
-				Node* operandNode2 = resultStack.top();  resultStack.pop();
-				Node* operandNode1 = resultStack.top();  resultStack.pop();
+				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
+				Node* operandNode2 = topPopNotEmpty(resultStack);
+				Node* operandNode1 = topPopNotEmpty(resultStack);
 				processNode(operatorNode, operandNode1, operandNode2);
 				resultStack.push(operatorNode);
-				operatorStack.pop();
 			}
 			operatorStack.push(parsedLexeme);
 		}
 
 		else
-			throw std::runtime_error("Cannot create operator tree. (maybe syntax error)");
+			throw ParserSyntaxError("Check if bracket is closed, or operator argument is valid.");
 	}
 
 	while (!operatorStack.empty()) {
-		Node* operatorNode = new Node(operatorStack.top());
-		Node* operandNode2 = resultStack.top();  resultStack.pop();
-		Node* operandNode1 = resultStack.top();  resultStack.pop();
+		Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
+		Node* operandNode2 = topPopNotEmpty(resultStack);
+		Node* operandNode1 = topPopNotEmpty(resultStack);
 		processNode(operatorNode, operandNode1, operandNode2);
 		resultStack.push(operatorNode);
-		operatorStack.pop();
 	}
 
 	return resultStack.top();

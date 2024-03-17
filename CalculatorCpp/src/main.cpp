@@ -79,13 +79,21 @@ int main()
 	pas.setOperatorLevels(mainOperatorLevels);
 	pas.setOperatorEvalType(mainOperatorEvalType);
 
-	lex.addContent("sqrt(4) + abs(-5-10) - 10 * 3k / 2^3 // 3e2");
+	lex.addContent("sqrt1+1k");
 	std::cout << lex.getContent() << "\n";
 	std::cout << pas.parseNumbers(lex.getContent()) << "\n";
 
-	Parser::Node* root = pas.createOperatorTree(pas.parseNumbers(lex.getContent()));
-	std::cout << pas.printOpertatorTree(root) << "\n";
-	
+	try {
+		pas.parserReady();
+		Parser::Node* root = pas.createOperatorTree(pas.parseNumbers(lex.getContent()));
+		std::cout << pas.printOpertatorTree(root) << "\n";
+	}
+	catch (const ParserSyntaxError& e) {
+		std::cerr << e.what();
+	}
+	catch (const ParserNotReadyError& e) {
+		std::cerr << e.what();
+	}
 
 	return 0;
 }
