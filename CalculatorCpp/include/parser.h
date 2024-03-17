@@ -49,10 +49,13 @@ private:
 	bool mIsParserReady{ false };
 
 public:
+	static bool strictedIsNumber(const std::string& lexeme);
 	Node* createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const;
 	void setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs);
 	void setOperatorLevels(const std::vector<std::pair<OperatorLexeme, OperatorLevel>>& operatorPairs);
 	void setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs);
+	bool isOperator(const GeneralLexeme& lexeme) const;
+	OperatorEvalType getOperatorType(const OperatorLexeme& oprLexeme) const;
 	std::vector<GeneralLexeme> parseNumbers(const std::vector<GeneralLexeme>& lexemes) const;
 	std::string printOpertatorTree(Parser::Node* tree);
 	void parserReady();

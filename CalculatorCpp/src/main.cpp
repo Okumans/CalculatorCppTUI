@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include "lexer.h"
 #include "parser.h"
+#include "evaluation.h"
 #define DEBUG
 #include "debug.cpp"
 
@@ -79,7 +80,17 @@ int main()
 	pas.setOperatorLevels(mainOperatorLevels);
 	pas.setOperatorEvalType(mainOperatorEvalType);
 
-	lex.addContent("sqrt1+1k");
+	Evaluate<long double> eval(pas);
+	eval.addOperatorFunction("+", [](double a, double b) {return a + b; });
+	eval.addOperatorFunction("-", [](double a, double b) {return a - b; });
+	eval.addOperatorFunction("*", [](double a, double b) {return a * b; });
+	eval.addOperatorFunction("/", [](double a, double b) {return a / b; });
+	eval.addOperatorFunction("^", [](double a, double b) {return std::pow(a, b); });
+	eval.addOperatorFunction("sqrt", [](double a) {return std::sqrt(a); });
+	eval.addOperatorFunction("e", [](double a, double b) {return a * std::pow(10, b); });
+	eval.addOperatorFunction("k", [](double a) {return a * 1000; });
+
+	lex.addContent("(((4 * 2) + (6 / 3)) ^ 2 * ((9 - 2) / sqrt4) - ((7 * 3k) + (5 - 2)) + (8 / (2 ^ 2)) + ((6 + 4) * (3 - 1)) / (5 ^ 2))");
 	std::cout << lex.getContent() << "\n";
 	std::cout << pas.parseNumbers(lex.getContent()) << "\n";
 
@@ -87,11 +98,16 @@ int main()
 		pas.parserReady();
 		Parser::Node* root = pas.createOperatorTree(pas.parseNumbers(lex.getContent()));
 		std::cout << pas.printOpertatorTree(root) << "\n";
+		std::cout << "result: " << eval.evaluateExpressionTree(root) << "\n";
+		
 	}
 	catch (const ParserSyntaxError& e) {
 		std::cerr << e.what();
 	}
 	catch (const ParserNotReadyError& e) {
+		std::cerr << e.what();
+	}
+	catch (const std::runtime_error& e) {
 		std::cerr << e.what();
 	}
 

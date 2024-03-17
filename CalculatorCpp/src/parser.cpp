@@ -22,7 +22,7 @@ static bool isNumber(const std::string& lexeme) {
 	return std::isdigit(lexeme[0]);
 }
 
-static bool strictedIsNumber(const std::string& lexeme) {
+bool Parser::strictedIsNumber(const std::string& lexeme) {
 	if (lexeme.empty())
 		return false;
 	if (lexeme.length() == 1 && lexeme[0] == '.')
@@ -66,6 +66,14 @@ void Parser::setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, Ope
 	mIsParserReady = false;
 	for (const auto& [lexeme, evalType] : operatorEvalTypePairs)
 		mOperatorEvalTypes[lexeme] = evalType;
+}
+
+bool Parser::isOperator(const GeneralLexeme& lexeme) const {
+	return mOperatorEvalTypes.contains(lexeme) || mOperatorLevels.contains(lexeme);
+}
+
+Parser::OperatorEvalType Parser::getOperatorType(const OperatorLexeme& oprLexeme) const {
+	return mOperatorEvalTypes.at(oprLexeme);
 }
 
 std::vector<std::string> Parser::parseNumbers(const std::vector<GeneralLexeme>& lexemes) const {
@@ -167,6 +175,8 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 
 		// if stack is empty, if is open bracket, if top stack is open bracket
 		else if (!mBracketsOperators.closeBracketsOperators.contains(parsedLexeme) &&
+			!(mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Prefix && !resultStack.empty()) &&
+			!(mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Postfix) &&
 			(operatorStack.empty() ||
 				mBracketsOperators.openBracketsOperators.contains(parsedLexeme) ||
 				mBracketsOperators.openBracketsOperators.contains(operatorStack.top())))
