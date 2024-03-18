@@ -32,6 +32,7 @@ public:
     public:
         explicit StartsWithsInstance(const TrieTree &trieTree);
         bool insertChar(const char currChar);
+        bool previewInsertChar(const char currChar);
         bool getResult() const;
         void reset();
     };

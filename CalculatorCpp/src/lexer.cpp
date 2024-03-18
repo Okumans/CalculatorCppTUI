@@ -61,7 +61,7 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 	};
 
 	for (char chr : currContent) {
-		if (std::isdigit(chr)) {
+		if (std::isdigit(chr) && !startWithInst.previewInsertChar(chr)) {
 			if (!buff.empty() && !std::isdigit(buff.at(0)))
 				clearBuffer();
 			buff += chr;
@@ -83,7 +83,7 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 		buff += chr;
 	}
 
-	if (!buff.empty() && (mKeywordTree.search(buff)) || std::isdigit(buff.at(0)))
+	if (!buff.length() && (mKeywordTree.search(buff)) || (buff.length() && std::isdigit(buff.at(0))))
 		temp.push_back(buff);
 
 	return temp;

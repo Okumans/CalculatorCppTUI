@@ -36,6 +36,8 @@ int main()
 		"}",
 		".",
 		"k",
+		"ln",
+		"log2",
 	};
 
 	const std::vector<std::pair<Parser::BracketLexeme, Parser::BracketLexeme>> mainBracketPairs{
@@ -55,6 +57,8 @@ int main()
 		{"sqrt", 9},
 		{"abs", 9},
 		{"k", 9},
+		{"ln", 9},
+		{"log2", 9},
 	};
 
 	using EvalType = Parser::OperatorEvalType;
@@ -69,6 +73,8 @@ int main()
 		{"sqrt", EvalType::Postfix},
 		{"abs", EvalType::Postfix},
 		{"k", EvalType::Prefix},
+		{"ln", EvalType::Postfix},
+		{"log2", EvalType::Postfix},
 	};
 
 	Lexer lex;
@@ -89,27 +95,50 @@ int main()
 	eval.addOperatorFunction("sqrt", [](double a) {return std::sqrt(a); });
 	eval.addOperatorFunction("e", [](double a, double b) {return a * std::pow(10, b); });
 	eval.addOperatorFunction("k", [](double a) {return a * 1000; });
+	eval.addOperatorFunction("ln", [](double a) {return std::log(a); });
+	eval.addOperatorFunction("log2", [](double a) {return std::log2(a); });
 
-	lex.addContent("(((4 * 2) + (6 / 3)) ^ 2 * ((9 - 2) / sqrt4) - ((7 * 3k) + (5 - 2)) + (8 / (2 ^ 2)) + ((6 + 4) * (3 - 1)) / (5 ^ 2))");
-	std::cout << lex.getContent() << "\n";
-	std::cout << pas.parseNumbers(lex.getContent()) << "\n";
 
-	try {
-		pas.parserReady();
-		Parser::Node* root = pas.createOperatorTree(pas.parseNumbers(lex.getContent()));
-		std::cout << pas.printOpertatorTree(root) << "\n";
-		std::cout << "result: " << eval.evaluateExpressionTree(root) << "\n";
+	size_t count{ 0 };
+	while (++count)
+	{
+		std::cout << "\n## EXPRESSION: " << count << "##\n";
+		std::cout << "Expression = ";
+		std::string input{};
 		
+		std::getline(std::cin, input);
+
+		if (input == "quit")
+			return 0;
+
+		auto lexResult = lex.lexing(input);
+		std::cout << "Lexing: " << lexResult << "\n";
+
+		auto parsedResult = pas.parseNumbers(lexResult);
+		std::cout << "Parsing Number: " << parsedResult << "\n";
+
+
+		if (!pas.parserReady().has_value()) {
+			auto root = pas.createOperatorTree(parsedResult);
+
+			if (!root.isError()) {
+				std::cout << "Operation Tree: " << pas.printOpertatorTree(root.getValue()) << "\n";
+
+				auto result = eval.evaluateExpressionTree(root.getValue());
+				if (!result.isError())
+					std::cout << "Result: " << result.getValue() << "\n";
+				else
+					std::cout << "ERROR: " << result.getException().what() << "\n";
+				
+				Parser::freeOperatorTree(root.getValue());
+			}
+			else {
+				std::cout << "ERROR: " << root.getException().what() << "\n";
+			}
+
+		}
 	}
-	catch (const ParserSyntaxError& e) {
-		std::cerr << e.what();
-	}
-	catch (const ParserNotReadyError& e) {
-		std::cerr << e.what();
-	}
-	catch (const std::runtime_error& e) {
-		std::cerr << e.what();
-	}
+
 
 	return 0;
 }

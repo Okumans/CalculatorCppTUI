@@ -26,8 +26,8 @@ public:
 	const std::string& getRawContent() const;
 	const TrieTree& getKeywordTree() const;
 	static std::vector<std::string> lexing(const TrieTree& keywordTree, const std::unordered_set<char>& separatorKeys, const std::string& currContent);
+	std::vector<std::string> lexing(const std::string& currContent) const;
 
 private:
-	std::vector<std::string> lexing(const std::string& currContent) const;
 	void reinitializeKeyWordTree();
 };

@@ -39,6 +39,14 @@ bool TrieTree::StartsWithsInstance::insertChar(const char currChar) {
 	return true;
 }
 
+bool TrieTree::StartsWithsInstance::previewInsertChar(const char currChar) {
+	if (!mCurrentTrieNode->children.contains(currChar)) {
+		mResult = false;
+		return false;
+	}
+	return true;
+}
+
 bool TrieTree::StartsWithsInstance::getResult() const {
 	return mResult;
 }

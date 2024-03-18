@@ -1,13 +1,23 @@
 #pragma once
-#include "parser.h"
-#include <unordered_map>
 #include <functional>
+#include <optional>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
+#include "result.h"
+#include "parser.h"
 
 class Parser;
 
-// todo: add EvaluateError class
+class EvaluationDefinitionError : public std::runtime_error {
+public:
+	explicit EvaluationDefinitionError(const std::string& msg) : std::runtime_error("EvaluationDefinitionError: " + msg) {}
+};
+
+class EvaluationFailedError : public std::runtime_error {
+public:
+	explicit EvaluationFailedError(const std::string& msg) : std::runtime_error("EvaluationFailedError: " + msg) {}
+};
 
 template<std::floating_point Floating>
 class Evaluate {
@@ -21,11 +31,11 @@ public:
 	explicit Evaluate(const Parser& parser);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating, Floating)>& operatorDefinition);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating)>& operatorDefinition);
-	Floating evaluateExpressionTree(Parser::Node* root) const;
+	Result<Floating> evaluateExpressionTree(Parser::Node* root) const;
 private:
-	Floating evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const;
-	Floating evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const;
-	Floating evaluatePostfix(const Parser::OperatorLexeme& opr, Floating right) const;
+	Result<Floating> evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const;
+	Result<Floating> evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const;
+	Result<Floating> evaluatePostfix(const Parser::OperatorLexeme& opr, Floating right) const;
 };
 
 #include "evaluation_impl.h"

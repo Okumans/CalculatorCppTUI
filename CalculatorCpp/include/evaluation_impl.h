@@ -5,7 +5,9 @@
 #include <cmath>
 #include <stack>
 #include <cctype>
+#include <optional>
 #include <type_traits>
+#include "result.h"
 #include "parser.h"
 #include "evaluation.h"
 
@@ -17,7 +19,7 @@ Evaluate<Floating>::Evaluate(const Parser& parser) : parser{ parser } {}
 template<std::floating_point Floating>
 void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating, Floating)>& operatorDefinition) {
 	if (!parser.isOperator(operatorLexeme) || parser.getOperatorType(operatorLexeme) != Parser::OperatorEvalType::Infix)
-		throw std::runtime_error("EvaluationError: operator " + operatorLexeme + " is not consist in infix operators list.");
+		throw EvaluationDefinitionError("operator " + operatorLexeme + " is not consist in infix operators list.");
 	mInfixOperatorFunctions[operatorLexeme] = operatorDefinition;
 }
 
@@ -28,55 +30,72 @@ void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& opera
 	else if (parser.isOperator(operatorLexeme) && parser.getOperatorType(operatorLexeme) == Parser::OperatorEvalType::Postfix)
 		mPostfixOperatorFunctions[operatorLexeme] = operatorDefinition;
 	else
-		throw std::runtime_error("EvaluationError: operator " + operatorLexeme + " is not consist in prefix or postfix operators list.");
+		throw EvaluationDefinitionError("operator " + operatorLexeme + " is not consist in prefix or postfix operators list.");
 }
 
 template<std::floating_point Floating>
-Floating Evaluate<Floating>::evaluateExpressionTree(Parser::Node* root) const {
+Result<Floating> Evaluate<Floating>::evaluateExpressionTree(Parser::Node* root) const {
 	if (root == nullptr)
-		throw std::runtime_error("EvaluationError: Failed to evaluate expression.");
+		return EvaluationFailedError("Failed to evaluate expression.");
 
 	// base case if a leaf node.
 	if (root->left == nullptr && root->right == nullptr)
-		return std::stoi(root->value);
+		return root->value == "." ? 0 :std::stod(root->value);
 
 	if (parser.getOperatorType(root->value) == Parser::OperatorEvalType::Infix) {
-		Floating leftVal = evaluateExpressionTree(root->left);
-		Floating rightVal = evaluateExpressionTree(root->right);
-		return evaluateInfix(root->value, leftVal, rightVal);
+		Result<Floating> leftVal = evaluateExpressionTree(root->left);
+		Result<Floating> rightVal = evaluateExpressionTree(root->right);
+
+		if (leftVal.isError()) return leftVal.getException();
+		if (rightVal.isError()) return rightVal.getException();
+
+		if (Result<Floating> res(evaluateInfix(root->value, leftVal.getValue(), rightVal.getValue())); !res.isError())
+			return res.getValue();
+		else 
+			return res.getException();
 	}
 
 	if (parser.getOperatorType(root->value) == Parser::OperatorEvalType::Postfix) {
-		Floating rightVal = evaluateExpressionTree(root->right);
-		return evaluatePostfix(root->value, rightVal);
+		Result<Floating> rightVal = evaluateExpressionTree(root->right);
+		if (rightVal.isError()) return rightVal.getException();
+
+		if (Result<Floating> res(evaluatePostfix(root->value, rightVal.getValue())); !res.isError())
+			return res.getValue();
+		else
+			return res.getException();
 	}
 
 	if (parser.getOperatorType(root->value) == Parser::OperatorEvalType::Prefix) {
-		Floating leftVal = evaluateExpressionTree(root->left);
-		return evaluatePrefix(root->value, leftVal);
+		Result<Floating> leftVal = evaluateExpressionTree(root->left);
+		if (leftVal.isError()) return leftVal.getException();
+
+		if (Result<Floating> res(evaluatePrefix(root->value, leftVal.getValue())); !res.isError())
+			return res.getValue();
+		else
+			return res.getException();
 	}
 
-	throw std::runtime_error("EvaluationError: Failed to evaluate expression.");
+	return EvaluationFailedError("Failed to evaluate expression.");
 }
 
 template<std::floating_point Floating>
-Floating Evaluate<Floating>::evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const {
+Result<Floating> Evaluate<Floating>::evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const {
 	if (!mInfixOperatorFunctions.contains(opr))
-		throw std::runtime_error("EvaluationError: Definition for operator " + opr + " not found.");
+		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mInfixOperatorFunctions.at(opr)(left, right);
 }
 
 template<std::floating_point Floating>
-Floating Evaluate<Floating>::evaluatePostfix(const Parser::OperatorLexeme& opr, Floating right) const {
+Result<Floating> Evaluate<Floating>::evaluatePostfix(const Parser::OperatorLexeme& opr, Floating right) const {
 	if (!mPostfixOperatorFunctions.contains(opr))
-		throw std::runtime_error("EvaluationError: Definition for operator " + opr + " not found.");
+		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mPostfixOperatorFunctions.at(opr)(right);
 }
 
 template<std::floating_point Floating>
-Floating Evaluate<Floating>::evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const {
+Result<Floating> Evaluate<Floating>::evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const {
 	if (!mPrefixOperatorFunctions.contains(opr))
-		throw std::runtime_error("EvaluationError: Definition for operator " + opr + " not found.");
+		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mPrefixOperatorFunctions.at(opr)(left);
 }
 

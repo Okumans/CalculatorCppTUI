@@ -47,5 +47,8 @@
     <ClInclude Include="include\evaluation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\result.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

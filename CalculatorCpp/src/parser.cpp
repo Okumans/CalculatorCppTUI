@@ -1,12 +1,14 @@
-#include <iostream>
-#include <vector>
-#include <string>
-#include <stack>
-#include <unordered_map>
-#include <unordered_set>
 #include <cctype>
-#include "parser.h"
+#include <iostream>
+#include <optional>
+#include <stack>
+#include <string>
 #include <sstream>
+#include <unordered_set>
+#include <unordered_map>
+#include <vector>
+#include "parser.h"
+#include "result.h"
 
 static bool isNumber(const std::string& lexeme) {
 	if (lexeme.empty())
@@ -46,7 +48,7 @@ static std::string_view trimLeadingZeros(const std::string& str) {
 	return std::string_view(str);
 }
 
-Parser::Node::Node(const GeneralLexeme& value) : value{ value } {}
+Parser::Node::Node(const GeneralLexeme& value) : value{ value } {/*std::cout << "(create " << value << ") "; */ }
 
 void Parser::setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs) {
 	mIsParserReady = false;
@@ -120,21 +122,22 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<GeneralLexeme>& 
 	return result;
 }
 
-void Parser::parserReady() {
+std::optional<ParserNotReadyError> Parser::parserReady() {
 	mIsParserReady = false;
 	if (mBracketsOperators.openBracketsOperators.empty())
-		throw ParserNotReadyError("Please setBracketsOperators.");
+		return ParserNotReadyError("Please setBracketsOperators.");
 	if (mOperatorEvalTypes.empty())
-		throw ParserNotReadyError("Please setOperatorEvalTypes.");
+		return ParserNotReadyError("Please setOperatorEvalTypes.");
 	if (mOperatorLevels.empty())
-		throw ParserNotReadyError("Please setOperatorLevels.");
+		return ParserNotReadyError("Please setOperatorLevels.");
 	if (mOperatorEvalTypes.size() != mOperatorLevels.size())
-		throw ParserNotReadyError("Please make sure all operator set EvalType and Levels.");
+		return ParserNotReadyError("Please make sure all operator set EvalType and Levels.");
 	for (const auto& [key, _] : mOperatorLevels) {
 		if (!mOperatorEvalTypes.contains(key))
-			throw ParserNotReadyError("Operator \"" + key + "\" not found in operatorEvalTypes. Please make sure all operator set EvalType and Levels, and is the same.");
+			return ParserNotReadyError("Operator \"" + key + "\" not found in operatorEvalTypes. Please make sure all operator set EvalType and Levels, and is the same.");
 	}
 	mIsParserReady = true;
+	return std::nullopt;
 }
 
 static void processNode(Parser::Node* operatorNode, Parser::Node* operandNode1, Parser::Node* operandNode2) {
@@ -144,17 +147,17 @@ static void processNode(Parser::Node* operatorNode, Parser::Node* operandNode1, 
 
 // @throws std::runtime_error if stack is empty
 template <typename T>
-static T topPopNotEmpty(std::stack<T>& stk) {
+static Result<T> topPopNotEmpty(std::stack<T>& stk) {
 	if (stk.empty())
-		throw ParserSyntaxError("heck if bracket is closed, or operator argument is valid.");
+		return ParserSyntaxError("Check if bracket is closed, or operator argument is valid.");
 	T temp = stk.top();
 	stk.pop();
 	return temp;
 }
 
-Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const {
+Result<Parser::Node*> Parser::createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const {
 	if (!mIsParserReady)
-		throw ParserNotReadyError("Please run parserReady() first!, To make sure that parser is ready.");
+		return ParserNotReadyError("Please run parserReady() first!, To make sure that parser is ready.");
 
 	std::stack<Node*> resultStack;
 	std::stack<GeneralLexeme> operatorStack;
@@ -164,8 +167,15 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 		if (strictedIsNumber(parsedLexeme)) {
 			// if is a argument of postfix operator
 			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
-				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
-				Node* prefixOperandNode = new Node(parsedLexeme);
+				auto operatorNodeValue = topPopNotEmpty(operatorStack);
+				auto prefixOperandNode = new Node(parsedLexeme);
+
+				if (operatorNodeValue.isError()) {
+					delete prefixOperandNode;
+					return operatorNodeValue.getException();
+				}
+
+				auto operatorNode = new Node(operatorNodeValue.getValue());
 				operatorNode->right = prefixOperandNode;
 				resultStack.push(operatorNode);
 				continue;
@@ -191,9 +201,15 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 
 		// if is a prefix operator
 		else if (mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Prefix && !resultStack.empty()) {
-			Node* operatorNode = new Node(parsedLexeme);
-			Node* prefixOperandNode = topPopNotEmpty(resultStack);
-			operatorNode->left = prefixOperandNode;
+			auto operatorNode = new Node(parsedLexeme);
+			auto prefixOperandNode = topPopNotEmpty(resultStack);
+
+			if (prefixOperandNode.isError()) {
+				delete operatorNode;
+				return prefixOperandNode.getException();
+			}
+
+			operatorNode->left = prefixOperandNode.getValue();
 			resultStack.push(operatorNode);
 		}
 
@@ -201,19 +217,47 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 		else if (mBracketsOperators.closeBracketsOperators.contains(parsedLexeme)) {
 			BracketLexeme openBracket{ mBracketsOperators.closeBracketsOperators.at(parsedLexeme) };
 			while (!operatorStack.empty() && operatorStack.top() != openBracket) {
-				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
-				Node* operandNode2 = topPopNotEmpty(resultStack);
-				Node* operandNode1 = topPopNotEmpty(resultStack);
-				processNode(operatorNode, operandNode1, operandNode2);
+				auto operatorNodeValue = topPopNotEmpty(operatorStack);
+				auto operandNode2 = topPopNotEmpty(resultStack);
+				auto operandNode1 = topPopNotEmpty(resultStack);
+
+				if (operandNode1.isError()) {
+					if (!operandNode2.isError())
+						freeOperatorTree(operandNode2.getValue());
+					return operandNode1.getException();
+				}
+				if (operandNode2.isError()) {
+					freeOperatorTree(operandNode1.getValue());
+					return operandNode2.getException();
+				}
+
+				if (operatorNodeValue.isError()) {
+					return operatorNodeValue.getException();
+				}
+
+				auto operatorNode = new Node(operatorNodeValue.getValue());
+
+				processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
 				resultStack.push(operatorNode);
 			}
 			operatorStack.pop();
 
 			// if current expression is argument of postfix operator
 			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
-				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
-				Node* prefixOperandNode = topPopNotEmpty(resultStack);
-				operatorNode->right = prefixOperandNode;
+				auto operatorNodeValue = topPopNotEmpty(operatorStack);
+				auto prefixOperandNode = topPopNotEmpty(resultStack);
+
+				if (prefixOperandNode.isError()) {
+					return operatorNodeValue.getException();
+				}
+
+				if (operatorNodeValue.isError()) {
+					freeOperatorTree(prefixOperandNode.getValue());
+					return operatorNodeValue.getException();
+				}
+
+				auto operatorNode = new Node(operatorNodeValue.getValue());
+				operatorNode->right = prefixOperandNode.getValue();
 				resultStack.push(operatorNode);
 			}
 		}
@@ -225,24 +269,59 @@ Parser::Node* Parser::createOperatorTree(const std::vector<GeneralLexeme>& parse
 		// if current operator level is lesser than top stack
 		else if (mOperatorLevels.at(parsedLexeme) <= mOperatorLevels.at(operatorStack.top())) {
 			while (!operatorStack.empty() && mOperatorLevels.contains(operatorStack.top()) && (mOperatorLevels.at(parsedLexeme) <= mOperatorLevels.at(operatorStack.top()))) {
-				Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
-				Node* operandNode2 = topPopNotEmpty(resultStack);
-				Node* operandNode1 = topPopNotEmpty(resultStack);
-				processNode(operatorNode, operandNode1, operandNode2);
+				auto operatorNodeValue = topPopNotEmpty(operatorStack);
+				auto operandNode2 = topPopNotEmpty(resultStack);
+				auto operandNode1 = topPopNotEmpty(resultStack);
+
+				if (operandNode1.isError()) {
+					if (!operandNode2.isError())
+						freeOperatorTree(operandNode2.getValue());
+					return operandNode1.getException();
+				}
+				if (operandNode2.isError()) {
+					freeOperatorTree(operandNode1.getValue());
+					return operandNode2.getException();
+				}
+
+				if (operatorNodeValue.isError()) {
+					return operatorNodeValue.getException();
+				}
+
+				auto operatorNode = new Node(operatorNodeValue.getValue());
+				processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
+
+
 				resultStack.push(operatorNode);
 			}
 			operatorStack.push(parsedLexeme);
 		}
 
 		else
-			throw ParserSyntaxError("Check if bracket is closed, or operator argument is valid.");
+			return ParserSyntaxError("Check if bracket is closed, or operator argument is valid.");
 	}
 
 	while (!operatorStack.empty()) {
-		Node* operatorNode = new Node(topPopNotEmpty(operatorStack));
-		Node* operandNode2 = topPopNotEmpty(resultStack);
-		Node* operandNode1 = topPopNotEmpty(resultStack);
-		processNode(operatorNode, operandNode1, operandNode2);
+		auto operatorNodeValue = topPopNotEmpty(operatorStack);
+		auto operandNode2 = topPopNotEmpty(resultStack);
+		auto operandNode1 = topPopNotEmpty(resultStack);
+
+		if (operandNode1.isError()) {
+			if (!operandNode2.isError())
+				freeOperatorTree(operandNode2.getValue());
+			return operandNode1.getException();
+		}
+		if (operandNode2.isError()) {
+			freeOperatorTree(operandNode1.getValue());
+			return operandNode2.getException();
+		}
+
+		if (operatorNodeValue.isError()) {
+			return operatorNodeValue.getException();
+		}
+
+		auto operatorNode = new Node(operatorNodeValue.getValue());
+
+		processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
 		resultStack.push(operatorNode);
 	}
 
@@ -282,4 +361,22 @@ std::string Parser::printOpertatorTree(Parser::Node* tree) {
 	}
 
 	return result.str();
+}
+
+void Parser::freeOperatorTree(Parser::Node* tree) {
+	if (tree == nullptr)
+		return;
+
+	if (tree->left != nullptr) {
+		freeOperatorTree(tree->left);
+		tree->left = nullptr;
+	}
+
+	if (tree->right != nullptr) {
+		freeOperatorTree(tree->right);
+		tree->right = nullptr;
+	}
+	
+	// std::cout << "(free " << tree->value << ") ";
+	delete tree;
 }
