@@ -166,6 +166,7 @@
     <ClCompile Include="..\dependencies\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\dependencies\imgui\imgui_widgets.cpp" />
     <ClCompile Include="include\evaluation_impl.h" />
+    <ClCompile Include="src\initialization.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\lexer.cpp" />
     <ClCompile Include="src\debug.cpp" />
@@ -183,6 +184,8 @@
     <ClInclude Include="..\dependencies\imgui\imstb_textedit.h" />
     <ClInclude Include="..\dependencies\imgui\imstb_truetype.h" />
     <ClInclude Include="include\evaluation.h" />
+    <ClInclude Include="include\initialization.h" />
+    <ClInclude Include="include\initialization_impl.h" />
     <ClInclude Include="include\lexer.h" />
     <ClInclude Include="include\parser.h" />
     <ClInclude Include="include\result.h" />
