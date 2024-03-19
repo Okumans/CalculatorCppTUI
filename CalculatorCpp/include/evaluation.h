@@ -26,16 +26,19 @@ private:
 	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>> mPrefixOperatorFunctions;
 	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>> mInfixOperatorFunctions;
 	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>> mPostfixOperatorFunctions;
+	std::unordered_map<Parser::OperatorLexeme, std::function<Floating()>> mConstantOperatorFunctions;
 
 public:
 	explicit Evaluate(const Parser& parser);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating, Floating)>& operatorDefinition);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating)>& operatorDefinition);
+	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating()>& operatorDefinition);
 	Result<Floating> evaluateExpressionTree(Parser::Node* root) const;
 private:
 	Result<Floating> evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const;
 	Result<Floating> evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const;
 	Result<Floating> evaluatePostfix(const Parser::OperatorLexeme& opr, Floating right) const;
+	Result<Floating> evaluateConstant(const Parser::OperatorLexeme& opr) const;
 };
 
 #include "evaluation_impl.h"

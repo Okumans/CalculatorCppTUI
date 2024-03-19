@@ -38,7 +38,8 @@ public:
 	enum class OperatorEvalType {
 		Prefix,
 		Infix,
-		Postfix
+		Postfix,
+		Constant
 	};
 
 private:

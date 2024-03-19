@@ -34,13 +34,29 @@ void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& opera
 }
 
 template<std::floating_point Floating>
+void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating()>& operatorDefinition) {
+	if (!parser.isOperator(operatorLexeme) || parser.getOperatorType(operatorLexeme) != Parser::OperatorEvalType::Constant)
+		throw EvaluationDefinitionError("operator " + operatorLexeme + " is not consist in constants list.");
+	mConstantOperatorFunctions[operatorLexeme] = operatorDefinition;
+}
+
+template<std::floating_point Floating>
 Result<Floating> Evaluate<Floating>::evaluateExpressionTree(Parser::Node* root) const {
 	if (root == nullptr)
 		return EvaluationFailedError("Failed to evaluate expression.");
 
 	// base case if a leaf node.
-	if (root->left == nullptr && root->right == nullptr)
-		return root->value == "." ? 0 :std::stod(root->value);
+	if (root->left == nullptr && root->right == nullptr) {
+		if (root->value == ".")
+			return 0;
+		else if (parser.isOperator(root->value) && parser.getOperatorType(root->value) == Parser::OperatorEvalType::Constant) {
+			if (Result<Floating> res(evaluateConstant(root->value)); !res.isError())
+				return res.getValue();
+			else
+				return res.getException();
+		}
+		return std::stod(root->value);
+	}
 
 	if (parser.getOperatorType(root->value) == Parser::OperatorEvalType::Infix) {
 		Result<Floating> leftVal = evaluateExpressionTree(root->left);
@@ -97,6 +113,13 @@ Result<Floating> Evaluate<Floating>::evaluatePrefix(const Parser::OperatorLexeme
 	if (!mPrefixOperatorFunctions.contains(opr))
 		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mPrefixOperatorFunctions.at(opr)(left);
+}
+
+template<std::floating_point Floating>
+Result<Floating> Evaluate<Floating>::evaluateConstant(const Parser::OperatorLexeme& opr) const {
+	if (!mConstantOperatorFunctions.contains(opr))
+		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
+	return mConstantOperatorFunctions.at(opr)();
 }
 
 #endif // EVALUATION_IMPL_H

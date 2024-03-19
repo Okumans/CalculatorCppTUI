@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_set>
+#include <numbers>
 #include "lexer.h"
 #include "parser.h"
 #include "evaluation.h"
@@ -25,7 +26,7 @@ int main()
 		"/",
 		"//",
 		"^",
-		"e",
+		"e+",
 		"sqrt",
 		"abs",
 		"[",
@@ -38,6 +39,8 @@ int main()
 		"k",
 		"ln",
 		"log2",
+		"e",
+		"pi",
 	};
 
 	const std::vector<std::pair<Parser::BracketLexeme, Parser::BracketLexeme>> mainBracketPairs{
@@ -52,13 +55,15 @@ int main()
 		{"*", 1},
 		{"/", 1},
 		{"//", 1},
-		{"e", 2},
+		{"e+", 2},
 		{"^", 2},
 		{"sqrt", 9},
 		{"abs", 9},
 		{"k", 9},
 		{"ln", 9},
 		{"log2", 9},
+		{"e", 9},
+		{"pi", 9},
 	};
 
 	using EvalType = Parser::OperatorEvalType;
@@ -68,13 +73,15 @@ int main()
 		{"*", EvalType::Infix},
 		{"/", EvalType::Infix},
 		{"//", EvalType::Infix},
-		{"e", EvalType::Infix},
+		{"e+", EvalType::Infix},
 		{"^", EvalType::Infix},
 		{"sqrt", EvalType::Postfix},
 		{"abs", EvalType::Postfix},
 		{"k", EvalType::Prefix},
 		{"ln", EvalType::Postfix},
 		{"log2", EvalType::Postfix},
+		{"e", EvalType::Constant},
+		{"pi", EvalType::Constant},
 	};
 
 	Lexer lex;
@@ -93,10 +100,14 @@ int main()
 	eval.addOperatorFunction("/", [](double a, double b) {return a / b; });
 	eval.addOperatorFunction("^", [](double a, double b) {return std::pow(a, b); });
 	eval.addOperatorFunction("sqrt", [](double a) {return std::sqrt(a); });
-	eval.addOperatorFunction("e", [](double a, double b) {return a * std::pow(10, b); });
+	eval.addOperatorFunction("e+", [](double a, double b) {return a * std::pow(10, b); });
 	eval.addOperatorFunction("k", [](double a) {return a * 1000; });
 	eval.addOperatorFunction("ln", [](double a) {return std::log(a); });
 	eval.addOperatorFunction("log2", [](double a) {return std::log2(a); });
+	eval.addOperatorFunction("e", []() {return std::numbers::e; });
+	eval.addOperatorFunction("pi", []() {return std::numbers::pi; });
+	eval.addOperatorFunction("abs", [](double a) {return std::abs(a); });
+
 
 
 	size_t count{ 0 };

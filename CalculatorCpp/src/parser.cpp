@@ -163,8 +163,8 @@ Result<Parser::Node*> Parser::createOperatorTree(const std::vector<GeneralLexeme
 	std::stack<GeneralLexeme> operatorStack;
 
 	for (const std::string& parsedLexeme : parsedLexemes) {
-		// if is a operand
-		if (strictedIsNumber(parsedLexeme)) {
+		// if is a operand or a constant
+		if (strictedIsNumber(parsedLexeme) || (mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Constant)) {
 			// if is a argument of postfix operator
 			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
 				auto operatorNodeValue = topPopNotEmpty(operatorStack);

@@ -83,7 +83,7 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 		buff += chr;
 	}
 
-	if (!buff.length() && (mKeywordTree.search(buff)) || (buff.length() && std::isdigit(buff.at(0))))
+	if (buff.length() && (mKeywordTree.search(buff) || (buff.length() && std::isdigit(buff.at(0)))))
 		temp.push_back(buff);
 
 	return temp;
