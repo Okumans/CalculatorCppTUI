@@ -116,7 +116,7 @@ int main()
 		std::cout << "\n## EXPRESSION: " << count << "##\n";
 		std::cout << "Expression = ";
 		std::string input{};
-		
+
 		std::getline(std::cin, input);
 
 		if (input == "quit")
@@ -140,7 +140,7 @@ int main()
 					std::cout << "Result: " << result.getValue() << "\n";
 				else
 					std::cout << "ERROR: " << result.getException().what() << "\n";
-				
+
 				Parser::freeOperatorTree(root.getValue());
 			}
 			else {
