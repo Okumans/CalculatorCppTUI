@@ -40,6 +40,10 @@ const TrieTree& Lexer::getKeywordTree() const {
 	return mKeywordTree;
 }
 
+const std::vector<std::string> Lexer::getKeywords() const {
+	return mKeywords;
+}
+
 void Lexer::reLexing() {
 	const std::vector<std::string> result = lexing(mRawContent);
 	mContent = result;
@@ -139,3 +143,4 @@ void Lexer::reinitializeKeyWordTree()
 			mKeywordTree.insert(keyword);
 	}
 }
+
