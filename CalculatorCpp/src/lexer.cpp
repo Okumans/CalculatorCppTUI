@@ -24,6 +24,12 @@ void Lexer::setKeywords(const std::vector<std::string>& keywords)
 	reinitializeKeyWordTree();
 }
 
+void Lexer::addKeyword(const std::string& keyword)
+{
+	mKeywords.push_back(keyword);
+	reinitializeKeyWordTree();
+}
+
 void Lexer::setSeperatorKeys(const std::unordered_set<char>& keys) {
 	mSeparatorKeys = keys;
 }

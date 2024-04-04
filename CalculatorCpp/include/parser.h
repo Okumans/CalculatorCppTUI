@@ -56,7 +56,10 @@ public:
 	Result<Node*> createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const;
 	void setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs);
 	void setOperatorLevels(const std::vector<std::pair<OperatorLexeme, OperatorLevel>>& operatorPairs);
+	void addOperatorLevel(OperatorLexeme operatorLexeme, OperatorLevel operatorLevel);
+	void addBracketOperator(BracketLexeme openBracket, BracketLexeme closeBracket);
 	void setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs);
+	void addOperatorEvalType(OperatorLexeme operatorLexme, OperatorEvalType operatorEvalType);
 	bool isOperator(const GeneralLexeme& lexeme) const;
 	OperatorEvalType getOperatorType(const OperatorLexeme& oprLexeme) const;
 	std::vector<GeneralLexeme> parseNumbers(const std::vector<GeneralLexeme>& lexemes) const;

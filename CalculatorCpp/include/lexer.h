@@ -20,6 +20,7 @@ public:
 	explicit Lexer(const std::string& raw_content);
 	void addContent(const std::string& content);
 	void setKeywords(const std::vector<std::string>& keywords);
+	void addKeyword(const std::string& keyword);
 	void setSeperatorKeys(const std::unordered_set<char>& keys);
 	void reLexing();
 	const std::vector<std::string>& getContent() const;

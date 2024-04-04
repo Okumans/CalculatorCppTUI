@@ -70,6 +70,25 @@ void Parser::setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, Ope
 		mOperatorEvalTypes[lexeme] = evalType;
 }
 
+void Parser::addBracketOperator(BracketLexeme openBracket, BracketLexeme closeBracket)
+{
+	mIsParserReady = false;
+	mBracketsOperators.openBracketsOperators[openBracket] = closeBracket;
+	mBracketsOperators.closeBracketsOperators[closeBracket] = openBracket;
+}
+
+void Parser::addOperatorLevel(OperatorLexeme operatorLexeme, OperatorLevel operatorLevel)
+{
+	mIsParserReady = false;
+	mOperatorLevels[operatorLexeme] = operatorLevel;
+}
+
+void Parser::addOperatorEvalType(OperatorLexeme operatorLexme, OperatorEvalType operatorEvalType)
+{
+	mIsParserReady = false;
+	mOperatorEvalTypes[operatorLexme] = operatorEvalType;
+}
+
 bool Parser::isOperator(const GeneralLexeme& lexeme) const {
 	return mOperatorEvalTypes.contains(lexeme) || mOperatorLevels.contains(lexeme);
 }

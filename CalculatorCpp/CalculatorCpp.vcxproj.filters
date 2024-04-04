@@ -33,6 +33,9 @@
     <ClCompile Include="include\evaluation_impl.h">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\initialization.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\lexer.h">
@@ -48,6 +51,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\result.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\initialization.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\initialization_impl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
