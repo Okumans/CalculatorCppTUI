@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <variant>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -28,11 +29,19 @@ public:
 	class Node
 	{
 	public:
+		enum class NodeState {
+			None,
+			LambdaFuntion,
+			Storage
+		}; 
+
 		std::string value;
 		Node* left{ nullptr };
 		Node* right{ nullptr };
+		NodeState nodestate{ NodeState::None };
+		std::vector<std::string> utilityStorage;
 
-		explicit Node(const Parser::GeneralLexeme& value);
+		explicit Node(const GeneralLexeme& value);
 	};
 
 	enum class OperatorEvalType {
@@ -44,27 +53,39 @@ public:
 
 private:
 	struct {
-		std::unordered_map<Parser::BracketLexeme, Parser::BracketLexeme> openBracketsOperators;
-		std::unordered_map<Parser::BracketLexeme, Parser::BracketLexeme> closeBracketsOperators;
+		std::unordered_map<BracketLexeme, BracketLexeme> openBracketsOperators;
+		std::unordered_map<BracketLexeme, BracketLexeme> closeBracketsOperators;
 	} mBracketsOperators;
 	std::unordered_map<OperatorLexeme, OperatorLevel> mOperatorLevels;
 	std::unordered_map<OperatorLexeme, OperatorEvalType> mOperatorEvalTypes;
+	std::unordered_map<BracketLexeme, Node::NodeState> mRawExpressionBracketEvalTypes;
 	bool mIsParserReady{ false };
 
 public:
-	static bool strictedIsNumber(const std::string& lexeme);
-	Result<Node*> createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const;
+	static bool strictedIsNumber(const std::string& lexeme, bool veryStrict = false);
+
+	// main functions
+	std::vector<GeneralLexeme> parseNumbers(const std::vector<GeneralLexeme>& lexemes) const;
+	Result<std::variant<Node*, std::vector<Node*>>> createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes, bool returnVector = false) const;
+	Result<Node*> createRawExpressionOperatorTree(const std::string& RawExpression) const;
+	Parser::Node* createRawExpressionStorage(const std::vector<Node*>& parsedExpressions) const;
+	
+	// setters
 	void setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs);
 	void setOperatorLevels(const std::vector<std::pair<OperatorLexeme, OperatorLevel>>& operatorPairs);
-	void addOperatorLevel(OperatorLexeme operatorLexeme, OperatorLevel operatorLevel);
-	void addBracketOperator(BracketLexeme openBracket, BracketLexeme closeBracket);
+	void addOperatorLevel(const OperatorLexeme& operatorLexeme, OperatorLevel operatorLevel);
+	void addBracketOperator(const BracketLexeme& openBracket, const BracketLexeme& closeBracket);
 	void setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs);
-	void addOperatorEvalType(OperatorLexeme operatorLexme, OperatorEvalType operatorEvalType);
+	void addOperatorEvalType(const OperatorLexeme& operatorLexme, OperatorEvalType operatorEvalType);
+	void setRawExpressionBracketEvalType(const std::vector<std::pair<BracketLexeme, Node::NodeState>>& rawExpressionBracketEvalTypePairs);
+	void addRawExpressionBracketEvalType(const BracketLexeme& openBracketLexeme, Node::NodeState rawExpressionBracketEvalType);
+	
 	bool isOperator(const GeneralLexeme& lexeme) const;
 	OperatorEvalType getOperatorType(const OperatorLexeme& oprLexeme) const;
-	std::vector<GeneralLexeme> parseNumbers(const std::vector<GeneralLexeme>& lexemes) const;
-	std::string printOpertatorTree(Parser::Node* tree);
+	std::string printOpertatorTree(Node* tree) const;
+
 	std::optional<ParserNotReadyError> parserReady();
-	static void freeOperatorTree(Parser::Node* tree);
+	void _ignore_parserReady();
+	static void freeOperatorTree(Node* tree);
 
 };

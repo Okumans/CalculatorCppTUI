@@ -3,6 +3,21 @@
 #include <string>
 #include <variant>
 
+#define EXCEPT_RETURN(x, ...) \
+	do { \
+			if (x.isError()) { \
+				__VA_ARGS__; \
+				return x.getException(); \
+			} \
+	} while (0)
+
+#define EXCEPT_RETURN_N(x, ...) \
+	do { \
+			if (!x.isError()) { \
+				__VA_ARGS__; \
+			} \
+	} while (0)
+
 template <typename T, typename E = std::exception>
 class Result {
 private:
@@ -12,6 +27,7 @@ private:
 public:
     Result(const T& value) : mValueOrException(value), mIsError(false) {}
     Result(const E& exception) : mValueOrException(exception), mIsError(true) {}
+    Result(const Result& other) : mValueOrException(other.mValueOrException), mIsError(other.mIsError) {}
 
     bool isError() const {
         return mIsError;

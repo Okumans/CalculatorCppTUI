@@ -15,6 +15,7 @@ void initializeLexer(Lexer& lexer) {
 		"//",
 		"^",
 		"e+",
+		"::",
 		"sqrt",
 		"abs",
 		"[",
@@ -23,6 +24,10 @@ void initializeLexer(Lexer& lexer) {
 		")",
 		"{",
 		"}",
+		"<[",
+		"]>",
+		"<(",
+		")>",
 		".",
 		"k",
 		"ln",
@@ -31,6 +36,8 @@ void initializeLexer(Lexer& lexer) {
 		"pi",
 	};
 
+	lexer.addRawStringBracket("<[", "]>");
+	lexer.addRawStringBracket("<(", ")>");
 	lexer.setKeywords(mainKeywords);
 	lexer.setSeperatorKeys(mainSeparatorKeys);
 }
@@ -39,7 +46,9 @@ void initializeParser(Parser& parser) {
 	const std::vector<std::pair<Parser::BracketLexeme, Parser::BracketLexeme>> mainBracketPairs{
 		{"[", "]"},
 		{"(", ")"},
-		{"{", "}"}
+		{"{", "}"},
+		{"<[", "]>"},
+		{"<(", ")>"}
 	};
 
 	const std::vector<std::pair<Parser::OperatorLexeme, Parser::OperatorLevel>> mainOperatorLevels{
@@ -48,6 +57,7 @@ void initializeParser(Parser& parser) {
 		{"*", 1},
 		{"/", 1},
 		{"//", 1},
+		{"::", 10},
 		{"e+", 2},
 		{"^", 2},
 		{"sqrt", 9},
@@ -66,6 +76,7 @@ void initializeParser(Parser& parser) {
 		{"*", EvalType::Infix},
 		{"/", EvalType::Infix},
 		{"//", EvalType::Infix},
+		{"::", EvalType::Infix},
 		{"e+", EvalType::Infix},
 		{"^", EvalType::Infix},
 		{"sqrt", EvalType::Postfix},
@@ -80,4 +91,7 @@ void initializeParser(Parser& parser) {
 	parser.setBracketOperators(mainBracketPairs);
 	parser.setOperatorLevels(mainOperatorLevels);
 	parser.setOperatorEvalType(mainOperatorEvalType);
+
+	parser.setRawExpressionBracketEvalType({ {"<[", Parser::Node::NodeState::LambdaFuntion} });
+	parser.setRawExpressionBracketEvalType({ {"<(", Parser::Node::NodeState::Storage} });
 }

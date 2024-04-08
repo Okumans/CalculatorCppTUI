@@ -4,49 +4,15 @@
 #include <numbers>
 #include <cassert>
 #include <array>
+
+#include <limits>
+
 #include "lexer.h"
 #include "parser.h"
 #include "evaluation.h"
 #include "initialization.h"
 #define DEBUG
 #include "debug.cpp"
-
-const std::array<std::string, 20> one = { "", "one-", "two-", "three-", "four-",
-				 "five-", "six-", "seven-", "eight-",
-				 "nine-", "ten-", "eleven-", "twelve-",
-				 "thirteen-", "fourteen-", "fifteen-",
-				 "sixteen-", "seventeen-", "eighteen-",
-				 "nineteen-" };
-
-const std::array<std::string, 10> ten = { "", "", "twenty-", "thirty-", "forty-",
-				 "fifty-", "sixty-", "seventy-", "eighty-",
-				 "ninety-" };
-
-std::string numToWords(int n, const std::string& s)
-{
-	std::string str = "";
-	str += (n > 19) ? ten[n / 10] + one[n % 10] : one[n];
-	return n ? str+s : str;
-}
-
-std::string convertToWords(long n)
-{
-	std::string out;
-	out += numToWords((n / 10000000), "crore-");
-	out += numToWords(((n / 100000) % 100), "lakh-");
-	out += numToWords(((n / 1000) % 100), "thousand-");
-	out += numToWords(((n / 100) % 10), "hundred-");
-	if (n > 100 && n % 100)
-		out += "and-";
-	out += numToWords((n % 100), "");
-	if (out == "")
-		out = "zero";
-
-	if (out[out.length() - 1] == '-')
-		out.pop_back();
-
-	return out;
-}
 
 int main()
 {
@@ -59,9 +25,26 @@ int main()
 	Evaluate<long double> eval(pas);
 	initializeEvaluator(eval);
 
-	//lex.addKeyword("<[");
-	//lex.addKeyword("]>");
-	//pas.addBracketOperator("<[", "]>");
+	OperatorDefiner oprDef(lex, pas, eval);
+
+	using FloatingType = decltype(oprDef)::FloatingType;
+	FloatingType memory[10000];
+
+	oprDef.defineOperator("writemem", 9, Parser::OperatorEvalType::Infix, [&memory](FloatingType memValue, FloatingType memAddress) {
+		if (0 <= memAddress && memAddress < 10000) {
+			memory[(int)memAddress] = memValue;
+			return 1;
+		}
+		return 0;
+		});
+
+	oprDef.defineOperator("readmem", 9, Parser::OperatorEvalType::Postfix, [&memory](FloatingType memAddress) {
+		if (0 <= memAddress && memAddress < 10000) {
+			return memory[(int)memAddress];
+		};
+		return std::numeric_limits<FloatingType>::max();
+		});
+
 
 	size_t count{ 0 };
 	while (++count)
@@ -85,14 +68,16 @@ int main()
 			auto root = pas.createOperatorTree(parsedResult);
 
 			if (!root.isError()) {
-				std::cout << "Operation Tree: " << pas.printOpertatorTree(root.getValue()) << "\n";
+				auto rootResult = root.getValue();
+				auto rootVal = std::get<Parser::Node*>(rootResult);
+				std::cout << "Operation Tree: " << pas.printOpertatorTree(rootVal) << "\n";
 
-				if (auto result = eval.evaluateExpressionTree(root.getValue()); !result.isError())
+				if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
 					std::cout << "Result: " << result.getValue() << "\n";
 				else
 					std::cout << "ERROR: " << result.getException().what() << "\n";
 
-				Parser::freeOperatorTree(root.getValue());
+				Parser::freeOperatorTree(rootVal);
 			}
 			else {
 				std::cout << "ERROR: " << root.getException().what() << "\n";

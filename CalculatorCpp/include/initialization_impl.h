@@ -4,6 +4,8 @@
 #include <cassert>
 #include "initialization.h" // Include the header file to ensure correct template instantiation
 
+
+#ifndef N_EVALUATE
 template<typename Floating>
 void initializeEvaluator(Evaluate<Floating>& evaluator) {
 	evaluator.addOperatorFunction("+", [](Floating a, Floating b) {return a + b; });
@@ -11,6 +13,7 @@ void initializeEvaluator(Evaluate<Floating>& evaluator) {
 	evaluator.addOperatorFunction("*", [](Floating a, Floating b) {return a * b; });
 	evaluator.addOperatorFunction("/", [](Floating a, Floating b) {return a / b; });
 	evaluator.addOperatorFunction("^", [](Floating a, Floating b) {return std::pow(a, b); });
+	evaluator.addOperatorFunction("::", [](Floating a, Floating b) {return a && b; });
 	evaluator.addOperatorFunction("sqrt", [](Floating a) {return std::sqrt(a); });
 	evaluator.addOperatorFunction("e+", [](Floating a, Floating b) {return a * std::pow(10, b); });
 	evaluator.addOperatorFunction("k", [](Floating a) {return a * 1000; });
@@ -20,7 +23,9 @@ void initializeEvaluator(Evaluate<Floating>& evaluator) {
 	evaluator.addOperatorFunction("pi", []() {return std::numbers::pi; });
 	evaluator.addOperatorFunction("abs", [](Floating a) {return std::abs(a); });
 }
+#endif // N_EVALUATE
 
+#if !defined(N_LEXER) && !defined(N_PARSER) && !defined(N_EVALUATE)
 template<typename Floating>
 void OperatorDefiner<Floating>::defineOperator(std::string operatorName, Parser::OperatorLevel operatorLevel, Parser::OperatorEvalType operatorEvalType, const std::function<Floating()>& operatorDefinition)
 {
@@ -51,4 +56,5 @@ void OperatorDefiner<Floating>::defineOperator(std::string operatorName, Parser:
 	mEvaluate.addOperatorFunction(operatorName, operatorDefinition);
 }
 
+#endif // N_LEXER && N_PARSER && N_EVALUATE 
 #endif // INITIALIZATION_IMPL_H

@@ -4,6 +4,7 @@
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <memory>
 #include "result.h"
 #include "parser.h"
 
@@ -23,13 +24,14 @@ template<std::floating_point Floating>
 class Evaluate {
 private:
 	const Parser& parser;
-	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>> mPrefixOperatorFunctions;
-	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>> mInfixOperatorFunctions;
-	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>> mPostfixOperatorFunctions;
+	std::shared_ptr<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>> mPrefixOperatorFunctions;
+	std::shared_ptr < std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>>> mInfixOperatorFunctions;
+	std::shared_ptr < std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>> mPostfixOperatorFunctions;
 	std::unordered_map<Parser::OperatorLexeme, std::function<Floating()>> mConstantOperatorFunctions;
 
 public:
-	explicit Evaluate(const Parser& parser);
+	Evaluate(const Parser& parser);
+	Evaluate(const Parser& parser, const Evaluate& other);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating, Floating)>& operatorDefinition);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating)>& operatorDefinition);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating()>& operatorDefinition);
