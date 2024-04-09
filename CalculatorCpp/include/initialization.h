@@ -1,11 +1,15 @@
 #pragma once
 
+#include <functional>
+
 #include "lexer.h"
 #include "parser.h"
 #include "evaluation.h"
 
+
 #ifndef N_LEXER
 void initializeLexer(Lexer& lexer);
+std::function<std::vector<std::string>(const std::string&)> initializeStaticLexer(const std::vector<std::string>& extendsKeywords);
 #endif // N_LEXER
 
 #ifndef N_PARSER

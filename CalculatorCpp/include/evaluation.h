@@ -25,8 +25,8 @@ class Evaluate {
 private:
 	const Parser& parser;
 	std::shared_ptr<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>> mPrefixOperatorFunctions;
-	std::shared_ptr < std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>>> mInfixOperatorFunctions;
-	std::shared_ptr < std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>> mPostfixOperatorFunctions;
+	std::shared_ptr<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>>> mInfixOperatorFunctions;
+	std::shared_ptr<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>> mPostfixOperatorFunctions;
 	std::unordered_map<Parser::OperatorLexeme, std::function<Floating()>> mConstantOperatorFunctions;
 
 public:

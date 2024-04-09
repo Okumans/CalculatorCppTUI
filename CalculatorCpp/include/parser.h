@@ -6,7 +6,9 @@
 #include <unordered_set>
 #include <memory>
 #include <optional>
+
 #include "result.h"
+#include "lexer.h"
 
 class ParserSyntaxError : public std::runtime_error {
 public:
@@ -52,10 +54,7 @@ public:
 	};
 
 private:
-	struct {
-		std::unordered_map<BracketLexeme, BracketLexeme> openBracketsOperators;
-		std::unordered_map<BracketLexeme, BracketLexeme> closeBracketsOperators;
-	} mBracketsOperators;
+	Brackets mBracketsOperators;
 	std::unordered_map<OperatorLexeme, OperatorLevel> mOperatorLevels;
 	std::unordered_map<OperatorLexeme, OperatorEvalType> mOperatorEvalTypes;
 	std::unordered_map<BracketLexeme, Node::NodeState> mRawExpressionBracketEvalTypes;

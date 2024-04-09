@@ -25,26 +25,6 @@ int main()
 	Evaluate<long double> eval(pas);
 	initializeEvaluator(eval);
 
-	OperatorDefiner oprDef(lex, pas, eval);
-
-	using FloatingType = decltype(oprDef)::FloatingType;
-	std::unique_ptr<FloatingType[]> memory{ new FloatingType[1000] };
-
-	oprDef.defineOperator("writemem", 9, Parser::OperatorEvalType::Infix, [&memory](FloatingType memValue, FloatingType memAddress) {
-		if (0 <= memAddress && memAddress < 10000) {
-			memory[(int)memAddress] = memValue;
-			return 1;
-		}
-		return 0;
-		});
-
-	oprDef.defineOperator("readmem", 9, Parser::OperatorEvalType::Postfix, [&memory](FloatingType memAddress) {
-		if (0 <= memAddress && memAddress < 10000) {
-			return memory[(int)memAddress];
-		};
-		return std::numeric_limits<FloatingType>::max();
-		});
-
 	size_t count{ 0 };
 	while (++count)
 	{

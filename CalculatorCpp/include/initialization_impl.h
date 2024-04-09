@@ -4,7 +4,6 @@
 #include <cassert>
 #include "initialization.h" // Include the header file to ensure correct template instantiation
 
-
 #ifndef N_EVALUATE
 template<typename Floating>
 void initializeEvaluator(Evaluate<Floating>& evaluator) {
@@ -12,8 +11,10 @@ void initializeEvaluator(Evaluate<Floating>& evaluator) {
 	evaluator.addOperatorFunction("-", [](Floating a, Floating b) {return a - b; });
 	evaluator.addOperatorFunction("*", [](Floating a, Floating b) {return a * b; });
 	evaluator.addOperatorFunction("/", [](Floating a, Floating b) {return a / b; });
+	evaluator.addOperatorFunction("//", [](Floating a, Floating b) {return std::floor(a / b); });
 	evaluator.addOperatorFunction("^", [](Floating a, Floating b) {return std::pow(a, b); });
-	evaluator.addOperatorFunction("::", [](Floating a, Floating b) {return a && b; });
+	evaluator.addOperatorFunction("!", [](Floating a) {return (Floating)std::tgamma(a + 1); });
+	evaluator.addOperatorFunction("~", [](Floating a) {return (Floating)!(bool)a; });
 	evaluator.addOperatorFunction("sqrt", [](Floating a) {return std::sqrt(a); });
 	evaluator.addOperatorFunction("e+", [](Floating a, Floating b) {return a * std::pow(10, b); });
 	evaluator.addOperatorFunction("k", [](Floating a) {return a * 1000; });
@@ -56,5 +57,5 @@ void OperatorDefiner<Floating>::defineOperator(std::string operatorName, Parser:
 	mEvaluate.addOperatorFunction(operatorName, operatorDefinition);
 }
 
-#endif // N_LEXER && N_PARSER && N_EVALUATE 
+#endif // N_LEXER && N_PARSER && N_EVALUATE
 #endif // INITIALIZATION_IMPL_H

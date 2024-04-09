@@ -244,22 +244,18 @@ Result<std::variant<Parser::Node*, std::vector<Parser::Node*>>> Parser::createOp
 		const Parser::GeneralLexeme parsedLexeme = *it;
 
 		// if is a operand or a constant
-		if (strictedIsNumber(parsedLexeme) || (mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Constant)) {
-			// if is a argument of postfix operator
-			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
-				auto operatorNodeValue = topPopNotEmpty(operatorStack);
-				auto prefixOperandNode = new Node(parsedLexeme);
-
-				EXCEPT_RETURN(operatorNodeValue,
-					delete prefixOperandNode
-				);
-
-				auto operatorNode = new Node(operatorNodeValue.getValue());
-				operatorNode->right = prefixOperandNode;
-				resultStack.push(operatorNode);
-				continue;
-			}
+		if (strictedIsNumber(parsedLexeme) || (mOperatorEvalTypes.contains(parsedLexeme) && (mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Constant))) {
 			resultStack.push(new Node(parsedLexeme));
+			
+			// if is a argument of postfix operator
+			while (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix)
+			{
+				auto operatorNode = new Node(topPopNotEmpty(operatorStack).getValue()); // guarantee that operatorNodeValue will always contains a value.
+				auto prefixOperandNodeValue = topPopNotEmpty(resultStack);
+				EXCEPT_RETURN(prefixOperandNodeValue, delete operatorNode);
+				operatorNode->right = prefixOperandNodeValue.getValue();
+				resultStack.push(operatorNode);
+			}
 		}
 
 		// if stack is empty, if is open bracket, if top stack is open bracket
@@ -457,10 +453,6 @@ Result<Parser::Node*> Parser::createRawExpressionOperatorTree(const std::string&
 	std::string_view rawOperationTree(RawExpression);
 	std::vector<std::string> variableLexemes;
 	bool isLambdaFunction{ false };
-
-	Lexer lex;
-	initializeLexer(lex);
-
 	Parser pas(*this);
 
 	if (auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') }; variableSpilterIndex != RawExpression.end()) {
@@ -470,7 +462,6 @@ Result<Parser::Node*> Parser::createRawExpressionOperatorTree(const std::string&
 		for (const auto splited : splitString(rawVariablesExpression, ','))
 		{
 			variableLexemes.emplace_back(splited);
-			lex._addKeyword_not_reinitializeKeyWordTree(std::string(splited));
 			pas.addOperatorEvalType(std::string(splited), OperatorEvalType::Constant);
 			pas.addOperatorLevel(std::string(splited), 9);
 		}
@@ -478,12 +469,8 @@ Result<Parser::Node*> Parser::createRawExpressionOperatorTree(const std::string&
 		isLambdaFunction = true;
 	}
 
-	lex._reinitializeKeyWordTree();
-
-	auto operationTree = lex.lexing(rawOperationTree.data());
+	auto operationTree = initializeStaticLexer(variableLexemes)(rawOperationTree.data());
 	auto parsedNumberOperationTree = parseNumbers(operationTree);
-
-	std::cout << parsedNumberOperationTree << "\n";
 
 	pas._ignore_parserReady();
 	if (isLambdaFunction) {
@@ -546,7 +533,7 @@ std::string Parser::printOpertatorTree(Parser::Node* tree) const {
 		if (tree->left != nullptr) {
 			Node* curr = tree->left;
 			while (curr != nullptr) {
-				result << "(" <<printOpertatorTree(curr->left) << "), ";
+				result << "(" << printOpertatorTree(curr->left) << "), ";
 				curr = curr->right;
 			}
 			result.seekp(-2, std::ios_base::end);
