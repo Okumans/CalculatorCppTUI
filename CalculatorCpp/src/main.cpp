@@ -28,7 +28,7 @@ int main()
 	OperatorDefiner oprDef(lex, pas, eval);
 
 	using FloatingType = decltype(oprDef)::FloatingType;
-	FloatingType memory[10000];
+	std::unique_ptr<FloatingType[]> memory{ new FloatingType[1000] };
 
 	oprDef.defineOperator("writemem", 9, Parser::OperatorEvalType::Infix, [&memory](FloatingType memValue, FloatingType memAddress) {
 		if (0 <= memAddress && memAddress < 10000) {
@@ -44,7 +44,6 @@ int main()
 		};
 		return std::numeric_limits<FloatingType>::max();
 		});
-
 
 	size_t count{ 0 };
 	while (++count)

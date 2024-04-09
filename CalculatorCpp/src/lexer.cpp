@@ -12,17 +12,6 @@ static void nonEmptyPushback(std::vector<std::string>& vec, const std::string& s
 	if (!str.empty()) vec.push_back(str);
 }
 
-Lexer::Lexer() : mRawContent{ "" } {}
-
-Lexer::Lexer(const std::string& rawContent) : mRawContent{ rawContent } {}
-
-void Lexer::addContent(const std::string& content)
-{
-	mRawContent += content;
-	const std::vector<std::string> result = lexing(content);
-	mContent.insert(mContent.end(), result.begin(), result.end());
-}
-
 void Lexer::setKeywords(const std::vector<std::string>& keywords)
 {
 	mKeywords = keywords;
@@ -67,21 +56,8 @@ void Lexer::setRawStringBrackets(const std::vector<std::pair<std::string, std::s
 	}
 }
 
-const std::vector<std::string>& Lexer::getContent() const {
-	return mContent;
-}
-
-const std::string& Lexer::getRawContent() const {
-	return mRawContent;
-}
-
 const TrieTree& Lexer::getKeywordTree() const {
 	return mKeywordTree;
-}
-
-void Lexer::reLexing() {
-	const std::vector<std::string> result = lexing(mRawContent);
-	mContent = result;
 }
 
 std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
