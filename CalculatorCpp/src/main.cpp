@@ -11,6 +11,7 @@
 #include "parser.h"
 #include "evaluation.h"
 #include "initialization.h"
+#include "nodeFactory.h"
 #define DEBUG
 #include "debug.cpp"
 

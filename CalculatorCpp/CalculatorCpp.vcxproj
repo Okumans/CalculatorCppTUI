@@ -159,6 +159,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\lexer.cpp" />
     <ClCompile Include="src\debug.cpp" />
+    <ClCompile Include="src\nodeFactory.cpp" />
     <ClCompile Include="src\parser.cpp" />
     <ClCompile Include="src\trieTree.cpp" />
   </ItemGroup>
@@ -167,6 +168,7 @@
     <ClInclude Include="include\initialization.h" />
     <ClInclude Include="include\initialization_impl.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\nodeFactory.h" />
     <ClInclude Include="include\parser.h" />
     <ClInclude Include="include\result.h" />
     <ClInclude Include="include\trieTree.h" />
