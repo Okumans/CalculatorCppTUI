@@ -9,6 +9,7 @@
 
 #include "result.h"
 #include "lexer.h"
+#include "nodeFactory.h"
 
 class ParserSyntaxError : public std::runtime_error {
 public:
@@ -28,24 +29,6 @@ public:
 	using NumberLexeme = std::string;
 	using GeneralLexeme = std::string;
 
-	class Node
-	{
-	public:
-		enum class NodeState {
-			None,
-			LambdaFuntion,
-			Storage
-		}; 
-
-		std::string value;
-		Node* left{ nullptr };
-		Node* right{ nullptr };
-		NodeState nodestate{ NodeState::None };
-		std::vector<std::string> utilityStorage;
-
-		explicit Node(const GeneralLexeme& value);
-	};
-
 	enum class OperatorEvalType {
 		Prefix,
 		Infix,
@@ -57,7 +40,7 @@ private:
 	Brackets mBracketsOperators;
 	std::unordered_map<OperatorLexeme, OperatorLevel> mOperatorLevels;
 	std::unordered_map<OperatorLexeme, OperatorEvalType> mOperatorEvalTypes;
-	std::unordered_map<BracketLexeme, Node::NodeState> mRawExpressionBracketEvalTypes;
+	std::unordered_map<BracketLexeme, NodeFactory::Node::NodeState> mRawExpressionBracketEvalTypes;
 	bool mIsParserReady{ false };
 
 public:
@@ -65,9 +48,9 @@ public:
 
 	// main functions
 	std::vector<GeneralLexeme> parseNumbers(const std::vector<GeneralLexeme>& lexemes) const;
-	Result<std::variant<Node*, std::vector<Node*>>> createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes, bool returnVector = false) const;
-	Result<Node*> createRawExpressionOperatorTree(const std::string& RawExpression) const;
-	Parser::Node* createRawExpressionStorage(const std::vector<Node*>& parsedExpressions) const;
+	Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes, bool returnVector = false) const;
+	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression) const;
+	NodeFactory::NodePos createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const;
 	
 	// setters
 	void setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs);
@@ -76,15 +59,13 @@ public:
 	void addBracketOperator(const BracketLexeme& openBracket, const BracketLexeme& closeBracket);
 	void setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs);
 	void addOperatorEvalType(const OperatorLexeme& operatorLexme, OperatorEvalType operatorEvalType);
-	void setRawExpressionBracketEvalType(const std::vector<std::pair<BracketLexeme, Node::NodeState>>& rawExpressionBracketEvalTypePairs);
-	void addRawExpressionBracketEvalType(const BracketLexeme& openBracketLexeme, Node::NodeState rawExpressionBracketEvalType);
+	void setRawExpressionBracketEvalType(const std::vector<std::pair<BracketLexeme, NodeFactory::Node::NodeState>>& rawExpressionBracketEvalTypePairs);
+	void addRawExpressionBracketEvalType(const BracketLexeme& openBracketLexeme, NodeFactory::Node::NodeState rawExpressionBracketEvalType);
 	
 	bool isOperator(const GeneralLexeme& lexeme) const;
 	OperatorEvalType getOperatorType(const OperatorLexeme& oprLexeme) const;
-	std::string printOpertatorTree(Node* tree) const;
+	std::string printOpertatorTree(NodeFactory::NodePos tree) const;
 
 	std::optional<ParserNotReadyError> parserReady();
 	void _ignore_parserReady();
-	static void freeOperatorTree(Node* tree);
-
 };

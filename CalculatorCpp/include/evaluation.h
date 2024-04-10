@@ -7,6 +7,7 @@
 #include <memory>
 #include "result.h"
 #include "parser.h"
+#include "nodeFactory.h"
 
 class Parser;
 
@@ -35,7 +36,7 @@ public:
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating, Floating)>& operatorDefinition);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating)>& operatorDefinition);
 	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating()>& operatorDefinition);
-	Result<Floating> evaluateExpressionTree(Parser::Node* root) const;
+	Result<Floating> evaluateExpressionTree(NodeFactory::NodePos root) const;
 private:
 	Result<Floating> evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const;
 	Result<Floating> evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const;

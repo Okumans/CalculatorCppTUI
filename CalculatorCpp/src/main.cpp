@@ -49,7 +49,7 @@ int main()
 
 			if (!root.isError()) {
 				auto rootResult = root.getValue();
-				auto rootVal = std::get<Parser::Node*>(rootResult);
+				auto rootVal = std::get<NodeFactory::NodePos>(rootResult);
 				std::cout << "Operation Tree: " << pas.printOpertatorTree(rootVal) << "\n";
 
 				if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
@@ -57,7 +57,7 @@ int main()
 				else
 					std::cout << "ERROR: " << result.getException().what() << "\n";
 
-				Parser::freeOperatorTree(rootVal);
+				NodeFactory::freeAll();
 			}
 			else {
 				std::cout << "ERROR: " << root.getException().what() << "\n";

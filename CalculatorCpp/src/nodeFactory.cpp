@@ -18,12 +18,21 @@ NodeFactory::Node& NodeFactory::iNode(NodePos index) {
 	return mNodeData[index];
 }
 
+bool NodeFactory::iValidNode(NodePos index) const {
+	return (index < mNodeData.size());
+}
+
 NodeFactory::Node& NodeFactory::node(NodePos index) {
 	return iGetInstance().iNode(index);
 }
 NodeFactory::NodePos NodeFactory::create(const std::string& value) {
 	return iGetInstance().iCreate(value);
 }
+
+bool NodeFactory::validNode(NodePos index) {
+	return iGetInstance().iValidNode(index);
+}
+
 
 void NodeFactory::freeAll() {
 	iGetInstance().iFreeAll();
@@ -38,4 +47,5 @@ NodeFactory::Node& NodeFactory::Node::rightNode() {
 NodeFactory::Node& NodeFactory::Node::leftNode() {
 	return NodeFactory::iGetInstance().iNode(leftPos);
 }
+
 

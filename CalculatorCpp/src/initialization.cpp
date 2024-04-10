@@ -5,6 +5,7 @@
 #include <tuple>
 #include <queue>
 #include "initialization.h"
+#include "nodeFactory.h"
 
 const std::unordered_set<char> mainSeparatorKeys{ ' ', '\n', '\t' };
 const std::vector<std::string> mainRawStringBracket{ "<[", "]>", "<(", ")>" };
@@ -131,6 +132,6 @@ void initializeParser(Parser& parser) {
 	parser.setOperatorLevels(mainOperatorLevels);
 	parser.setOperatorEvalType(mainOperatorEvalType);
 
-	parser.setRawExpressionBracketEvalType({ {"<[", Parser::Node::NodeState::LambdaFuntion} });
-	parser.setRawExpressionBracketEvalType({ {"<(", Parser::Node::NodeState::Storage} });
+	parser.setRawExpressionBracketEvalType({ {"<[", NodeFactory::Node::NodeState::LambdaFuntion} });
+	parser.setRawExpressionBracketEvalType({ {"<(", NodeFactory::Node::NodeState::Storage} });
 }

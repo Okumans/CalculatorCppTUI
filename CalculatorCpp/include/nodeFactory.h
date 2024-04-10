@@ -2,10 +2,13 @@
 
 #include <vector>
 #include <string>
+#include <limits>
 
 class NodeFactory {
 public:
 	using NodePos = size_t;
+	static const NodePos NodePosNull = std::numeric_limits<size_t>::max();
+
 	class Node
 	{
 	public:
@@ -19,8 +22,8 @@ public:
 		NodeState nodestate{ NodeState::None };
 		std::vector<std::string> utilityStorage;
 
-		NodePos leftPos{ 0 };
-		NodePos rightPos{ 0 };
+		NodePos leftPos{ std::numeric_limits<size_t>::max() };
+		NodePos rightPos{ std::numeric_limits<size_t>::max() };
 
 		explicit Node(const std::string& value);
 		Node& rightNode();
@@ -36,12 +39,13 @@ public:
 	NodeFactory& operator=(const NodeFactory& other) = delete;
 	static NodeFactory& iGetInstance();
 	static Node& node(NodePos index);
-	static NodePos create(const std::string& value);
+	static NodePos create(const std::string& value = "");
 	static void freeAll();
-
+	static bool validNode(NodePos index);
 
 private:
 	Node& iNode(NodePos index);
 	NodePos iCreate(const std::string& value);
+	bool iValidNode(NodePos index) const;
 	void iFreeAll();
 };
