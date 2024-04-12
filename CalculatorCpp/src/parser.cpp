@@ -23,6 +23,8 @@
 #define N_EVALUATE
 #include "initialization.h"
 
+constexpr size_t STACK_CALL_LIMIT = 500;
+
 static std::string strip(std::string in)
 {
 	in.erase(std::remove_if(in.begin(), in.end(), [](std::string::value_type ch)
@@ -246,7 +248,7 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 		// if is a operand or a constant
 		if (strictedIsNumber(parsedLexeme) || (mOperatorEvalTypes.contains(parsedLexeme) && (mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Constant))) {
 			resultStack.push(NodeFactory::create(parsedLexeme));
-			
+
 			// if is a argument of postfix operator
 			while (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix)
 			{
@@ -432,7 +434,7 @@ NodeFactory::NodePos Parser::createRawExpressionStorage(const std::vector<NodeFa
 	{
 		NodeFactory::NodePos curr = NodeFactory::create();
 		NodeFactory::node(curr).leftPos = parsedExpressions[i];
-		NodeFactory::node(curr).rightPos = curr;
+		NodeFactory::node(tail).rightPos = curr;
 		tail = curr;
 	}
 
@@ -467,9 +469,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 	pas._ignore_parserReady();
 	if (isLambdaFunction) {
 		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree);
-
-		if (fullyParsedOperationTree.isError())
-			return fullyParsedOperationTree.getException();
+		EXCEPT_RETURN(fullyParsedOperationTree);
 
 		auto fullyParsedOperationTreeValue{ fullyParsedOperationTree.getValue() };
 
@@ -483,9 +483,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 
 	else {
 		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree, true);
-
-		if (fullyParsedOperationTree.isError())
-			return fullyParsedOperationTree.getException();
+		EXCEPT_RETURN(fullyParsedOperationTree);
 
 		auto fullyParsedOperationTreeValue{ fullyParsedOperationTree.getValue() };
 
@@ -497,12 +495,15 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 	}
 }
 
-std::string Parser::printOpertatorTree(NodeFactory::NodePos tree) const {
-	const auto& treeNode = NodeFactory::node(tree); // guarantee no modification, if is't treeNode can be dangling reference.
+std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level) const {
+	const auto& treeNode = NodeFactory::node(tree); // guarantee no modification, if isn't treeNode can be dangling reference.
 
 	// if tree is null
 	if (!NodeFactory::validNode(tree))
 		return "";
+
+	if (_level > STACK_CALL_LIMIT)
+		return "...";
 
 	// if a number
 	if (!NodeFactory::validNode(treeNode.leftPos) && !NodeFactory::validNode(treeNode.rightPos))
@@ -516,7 +517,7 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree) const {
 		for (const std::string& str : treeNode.utilityStorage)
 			result << str << ", ";
 		treeNode.utilityStorage.size() && result.seekp(-2, std::ios_base::end);
-		result << ">" << treeNode.value << "{" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos) : "null") << "}";
+		result << ">" << treeNode.value << "{" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos, _level+1) : "null") << "}";
 		return result.str();
 	}
 
@@ -527,7 +528,7 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree) const {
 		if (NodeFactory::validNode(treeNode.leftPos)) {
 			NodeFactory::NodePos curr = treeNode.leftPos;
 			while (NodeFactory::validNode(curr)) {
-				result << "(" << printOpertatorTree(NodeFactory::node(curr).leftPos) << "), ";
+				result << "(" << printOpertatorTree(NodeFactory::node(curr).leftPos, _level + 1) << "), ";
 				curr = NodeFactory::node(curr).rightPos;
 			}
 			result.seekp(-2, std::ios_base::end);
@@ -542,17 +543,17 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree) const {
 	{
 		using enum Parser::OperatorEvalType;
 	case Prefix:
-		result << "{" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos) : "null");
+		result << "{" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos, _level + 1) : "null");
 		result << " " << treeNode.value << "}";
 		break;
 	case Infix:
-		result << "(" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos) : "null");
+		result << "(" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos, _level + 1) : "null");
 		result << " " << treeNode.value << " ";
-		result << (NodeFactory::validNode(treeNode.rightPos) ? printOpertatorTree(treeNode.rightPos) : "null") << ")";
+		result << (NodeFactory::validNode(treeNode.rightPos) ? printOpertatorTree(treeNode.rightPos, _level + 1) : "null") << ")";
 		break;
 	case Postfix:
 		result << "[" << treeNode.value << " ";
-		result << (NodeFactory::validNode(treeNode.rightPos) ? printOpertatorTree(treeNode.rightPos) : "null") << "]";
+		result << (NodeFactory::validNode(treeNode.rightPos) ? printOpertatorTree(treeNode.rightPos, _level + 1) : "null") << "]";
 		break;
 	default:
 		break;

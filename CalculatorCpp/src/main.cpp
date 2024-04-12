@@ -4,7 +4,7 @@
 #include <numbers>
 #include <cassert>
 #include <array>
-
+#include <sstream>
 #include <limits>
 
 #include "lexer.h"
@@ -23,7 +23,7 @@ int main()
 	Parser pas;
 	initializeParser(pas);
 
-	Evaluate<long double> eval(pas);
+	Evaluate<double> eval(pas);
 	initializeEvaluator(eval);
 
 	size_t count{ 0 };
@@ -39,10 +39,18 @@ int main()
 			return 0;
 
 		auto lexResult = lex.lexing(input);
-		std::cout << "Lexing: " << lexResult << "\n";
+
+		std::stringstream ss;
+		ss << lexResult;
+
+		std::cout << "Lexing: " << ss.str().substr(0, 1000) << "\n";
 
 		auto parsedResult = pas.parseNumbers(lexResult);
-		std::cout << "Parsing Number: " << parsedResult << "\n";
+
+		ss.clear();
+		ss << parsedResult;
+
+		std::cout << "Parsing Number: " << ss.str().substr(0, 1000) << "\n";
 
 		if (!pas.parserReady().has_value()) {
 			auto root = pas.createOperatorTree(parsedResult);
@@ -63,6 +71,7 @@ int main()
 				std::cout << "ERROR: " << root.getException().what() << "\n";
 			}
 		}
+
 	}
 
 	return 0;

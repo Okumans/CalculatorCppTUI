@@ -64,7 +64,7 @@ public:
 	
 	bool isOperator(const GeneralLexeme& lexeme) const;
 	OperatorEvalType getOperatorType(const OperatorLexeme& oprLexeme) const;
-	std::string printOpertatorTree(NodeFactory::NodePos tree) const;
+	std::string printOpertatorTree(NodeFactory::NodePos tree, size_t _level = 0) const;
 
 	std::optional<ParserNotReadyError> parserReady();
 	void _ignore_parserReady();

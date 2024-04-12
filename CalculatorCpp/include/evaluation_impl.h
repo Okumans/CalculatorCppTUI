@@ -8,18 +8,18 @@
 #include <optional>
 #include <type_traits>
 #include <ranges>
+#include <format>
 
 #include "result.h"
 #include "parser.h"
 #include "evaluation.h"
 #include "nodeFactory.h"
 
-
 template<std::floating_point Floating>
 Evaluate<Floating>::Evaluate(const Parser& parser) : parser{ parser },
-	mInfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>>>() },
-	mPostfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>>() },
-	mPrefixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>>() } {}
+mInfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>>>() },
+mPostfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>>() },
+mPrefixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>>() } {}
 
 template<std::floating_point Floating>
 Evaluate<Floating>::Evaluate(const Parser& parser, const Evaluate<Floating>& other) :
@@ -53,105 +53,229 @@ void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& opera
 	mConstantOperatorFunctions[operatorLexeme] = operatorDefinition;
 }
 
+//template<std::floating_point Floating>
+//Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos root) const {
+//	if (!NodeFactory::validNode(root))
+//		return EvaluationFailedError("Failed to evaluate expression.");
+//
+//	// base case if a leaf node.
+//	if (!NodeFactory::validNode(NodeFactory::node(root).leftPos) && !NodeFactory::validNode(NodeFactory::node(root).rightPos)) {
+//		if (NodeFactory::node(root).value == ".")
+//			return 0;
+//		else if (parser.isOperator(NodeFactory::node(root).value) && parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Constant) {
+//			if (Result<Floating> res(evaluateConstant(NodeFactory::node(root).value)); !res.isError())
+//				return res.getValue();
+//			else
+//				return res.getException();
+//		}
+//		return std::stod(NodeFactory::node(root).value);
+//	}
+//
+//	if (NodeFactory::node(root).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
+//		std::vector<std::string>& parameters = NodeFactory::node(root).utilityStorage;
+//		Parser pas(this->parser);
+//		Evaluate eval(pas, *this);
+//
+//		std::vector<Floating> arguments;
+//
+//		NodeFactory::NodePos curr = NodeFactory::node(root).rightPos;
+//		while (NodeFactory::validNode(curr)) {
+//			Result<Floating> result = evaluateExpressionTree(NodeFactory::node(curr).leftPos);
+//			EXCEPT_RETURN(result);
+//			arguments.push_back(result.getValue());
+//			curr = NodeFactory::node(curr).rightPos;
+//		}
+//
+//		if (arguments.size() != parameters.size())
+//			return 0;
+//
+//		for (size_t ind{ 0 }, len{ parameters.size() }; ind < len; ind++)
+//		{
+//			eval.mConstantOperatorFunctions[parameters[ind]] = [ind, &arguments]() {return arguments[ind]; };
+//			pas.addOperatorEvalType(parameters[ind], Parser::OperatorEvalType::Constant);
+//		}
+//
+//		Result<Floating> leftVal = eval.evaluateExpressionTree(NodeFactory::node(root).leftPos);
+//		EXCEPT_RETURN(leftVal);
+//
+//		return leftVal.getValue();
+//	}
+//
+//	if (NodeFactory::node(root).nodestate == NodeFactory::Node::NodeState::Storage) {
+//		std::vector<Floating> arguments;
+//
+//		NodeFactory::NodePos curr = NodeFactory::node(root).leftPos;
+//		while (NodeFactory::validNode(curr)) {
+//			Result<Floating> result = evaluateExpressionTree(NodeFactory::node(curr).leftPos);
+//			EXCEPT_RETURN(result);
+//			arguments.push_back(result.getValue());
+//			curr = NodeFactory::node(curr).rightPos;
+//		}
+//
+//		if (arguments.size())
+//			return arguments.back();
+//		return EvaluationFailedError("Cannot evalutate noting.");
+//	}
+//
+//	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Infix) {
+//		Result<Floating> leftVal = evaluateExpressionTree(NodeFactory::node(root).leftPos);
+//		Result<Floating> rightVal = evaluateExpressionTree(NodeFactory::node(root).rightPos);
+//
+//		if (leftVal.isError()) return leftVal.getException();
+//		if (rightVal.isError()) return rightVal.getException();
+//
+//		if (Result<Floating> res(evaluateInfix(NodeFactory::node(root).value, leftVal.getValue(), rightVal.getValue())); !res.isError())
+//			return res.getValue();
+//		else
+//			return res.getException();
+//	}
+//
+//	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Postfix) {
+//		Result<Floating> rightVal = evaluateExpressionTree(NodeFactory::node(root).rightPos);
+//		if (rightVal.isError()) return rightVal.getException();
+//
+//		if (Result<Floating> res(evaluatePostfix(NodeFactory::node(root).value, rightVal.getValue())); !res.isError())
+//			return res.getValue();
+//		else
+//			return res.getException();
+//	}
+//
+//	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Prefix) {
+//		Result<Floating> leftVal = evaluateExpressionTree(NodeFactory::node(root).leftPos);
+//		if (leftVal.isError()) return leftVal.getException();
+//
+//		if (Result<Floating> res(evaluatePrefix(NodeFactory::node(root).value, leftVal.getValue())); !res.isError())
+//			return res.getValue();
+//		else
+//			return res.getException();
+//	}
+//
+//	return EvaluationFailedError("Failed to evaluate expression.");
+//}
+
 template<std::floating_point Floating>
 Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos root) const {
-	if (!NodeFactory::validNode(root))
-		return EvaluationFailedError("Failed to evaluate expression.");
+	std::stack<NodeFactory::NodePos> operationStack;
+	std::unordered_map<NodeFactory::NodePos, Floating> resultMap;
 
-	// base case if a leaf node.
-	if (!NodeFactory::validNode(NodeFactory::node(root).leftPos) && !NodeFactory::validNode(NodeFactory::node(root).rightPos)) {
-		if (NodeFactory::node(root).value == ".")
-			return 0;
-		else if (parser.isOperator(NodeFactory::node(root).value) && parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Constant) {
-			if (Result<Floating> res(evaluateConstant(NodeFactory::node(root).value)); !res.isError())
-				return res.getValue();
+	operationStack.push(root);
+	while (!operationStack.empty()) {
+		const NodeFactory::NodePos currNodePos = operationStack.top();
+		const NodeFactory::Node& currNode = NodeFactory::node(currNodePos);
+
+		if (!NodeFactory::validNode(currNodePos)) continue;
+
+		// if currNode is a leaf node.
+		else if (!NodeFactory::validNode(currNode.rightPos) &&
+			!NodeFactory::validNode(currNode.leftPos)) {
+			if (currNode.value == ".")
+				resultMap[currNodePos] = 0;
+
+			else if (parser.isOperator(currNode.value) &&
+				parser.getOperatorType(currNode.value) == Parser::OperatorEvalType::Constant) {
+				Result<Floating> res(evaluateConstant(currNode.value));
+				EXCEPT_RETURN(res);
+				resultMap[currNodePos] = res.getValue();
+			}
 			else
-				return res.getException();
-		}
-		return std::stod(NodeFactory::node(root).value);
-	}
-
-	if (NodeFactory::node(root).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-		std::vector<std::string>& parameters = NodeFactory::node(root).utilityStorage;
-		Parser pas(this->parser);
-		Evaluate eval(pas, *this);
-
-
-		std::vector<Floating> arguments;
-
-		NodeFactory::NodePos curr = NodeFactory::node(root).rightPos;
-		while (NodeFactory::validNode(curr)) {
-			Result<Floating> result = evaluateExpressionTree(NodeFactory::node(curr).leftPos);
-			EXCEPT_RETURN(result);
-			arguments.push_back(result.getValue());
-			curr = NodeFactory::node(curr).rightPos;
+				resultMap[currNodePos] = std::stod(currNode.value);
 		}
 
-		if (arguments.size() != parameters.size())
-			return 0;
+		else if (currNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
+			const std::vector<std::string>& parameters = currNode.utilityStorage;
+			std::vector<Floating> arguments;
+			Parser pas(this->parser);
+			Evaluate eval(pas, *this);
 
-		for (size_t ind{ 0 }, len{ parameters.size() }; ind < len; ind++)
-		{
-			eval.mConstantOperatorFunctions[parameters[ind]] = [ind, &arguments]() {return arguments[ind]; };
-			pas.addOperatorEvalType(parameters[ind], Parser::OperatorEvalType::Constant);
+			NodeFactory::NodePos currArgNodePos = currNode.rightPos;
+			while (NodeFactory::validNode(currArgNodePos)) {
+				Result<Floating> result = evaluateExpressionTree(NodeFactory::node(currArgNodePos).leftPos);
+				EXCEPT_RETURN(result);
+				arguments.push_back(result.getValue());
+				currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
+			}
+
+			if (arguments.size() != parameters.size())
+				return ParserSyntaxError(std::format("parameters size must be equal to argument size! ({}!={})", arguments.size(), parameters.size()));
+
+			for (size_t ind{ 0 }, len{ parameters.size() }; ind < len; ind++) {
+				eval.mConstantOperatorFunctions[parameters[ind]] = [ind, &arguments]() {return arguments[ind]; };
+				pas.addOperatorEvalType(parameters[ind], Parser::OperatorEvalType::Constant);
+			}
+
+			Result<Floating> leftVal = eval.evaluateExpressionTree(currNode.leftPos);
+			EXCEPT_RETURN(leftVal);
+
+			resultMap[currNodePos] = leftVal.getValue();
 		}
 
-		Result<Floating> leftVal = eval.evaluateExpressionTree(NodeFactory::node(root).leftPos);
-		EXCEPT_RETURN(leftVal);
+		else if (currNode.nodestate == NodeFactory::Node::NodeState::Storage) {
+			std::vector<Floating> arguments;
 
-		return leftVal.getValue();
-	}
+			NodeFactory::NodePos currArgNodePos = currNode.leftPos;
+			while (NodeFactory::validNode(currArgNodePos)) {
+				Result<Floating> result = evaluateExpressionTree(NodeFactory::node(currArgNodePos).leftPos);
+				EXCEPT_RETURN(result);
+				arguments.push_back(result.getValue());
+				currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
+			}
 
-	if (NodeFactory::node(root).nodestate == NodeFactory::Node::NodeState::Storage) {
-		std::vector<Floating> arguments;
-
-		NodeFactory::NodePos curr = NodeFactory::node(root).leftPos;
-		while (NodeFactory::validNode(curr)) {
-			Result<Floating> result = evaluateExpressionTree(NodeFactory::node(curr).leftPos);
-			EXCEPT_RETURN(result);
-			arguments.push_back(result.getValue());
-			curr = NodeFactory::node(curr).rightPos;
+			if (!arguments.size())
+				return EvaluationFailedError("Cannot evalutate noting.");
+			
+			resultMap[currNodePos] = arguments.back();
 		}
 
-		if (arguments.size())
-			return arguments.back();
-		return EvaluationFailedError("Cannot evalutate noting.");
+		else if (parser.getOperatorType(currNode.value) == Parser::OperatorEvalType::Infix) {
+			if (!resultMap.contains(currNode.leftPos)) {
+				operationStack.push(currNode.leftPos);
+				continue;
+			}
+
+			if (!resultMap.contains(currNode.rightPos)) {
+				operationStack.push(currNode.rightPos);
+				continue;
+			}
+
+			Floating leftVal{ resultMap[currNode.leftPos] };
+			Floating rightVal{ resultMap[currNode.rightPos] };
+
+			Result<Floating> res{ evaluateInfix(currNode.value, leftVal, rightVal) };
+			EXCEPT_RETURN(res);
+			resultMap[currNodePos] = res.getValue();
+		}
+
+		else if (parser.getOperatorType(currNode.value) == Parser::OperatorEvalType::Postfix) {
+			if (!resultMap.contains(currNode.rightPos)) {
+				operationStack.push(currNode.rightPos);
+				continue;
+			}
+
+			Floating rightVal{ resultMap[currNode.rightPos] };
+			Result<Floating> res{ evaluatePostfix(currNode.value, rightVal) };
+			EXCEPT_RETURN(res);
+			resultMap[currNodePos] = res.getValue();
+		}
+
+		else if (parser.getOperatorType(currNode.value) == Parser::OperatorEvalType::Prefix) {
+			if (!resultMap.contains(currNode.leftPos)) {
+				operationStack.push(currNode.leftPos);
+				continue;
+			}
+
+			Floating leftVal{ resultMap[currNode.leftPos] };
+			Result<Floating> res{ evaluatePrefix(currNode.value, leftVal) };
+			EXCEPT_RETURN(res);
+			resultMap[currNodePos] = res.getValue();
+		}
+
+		operationStack.pop();
 	}
 
-	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Infix) {
-		Result<Floating> leftVal = evaluateExpressionTree(NodeFactory::node(root).leftPos);
-		Result<Floating> rightVal = evaluateExpressionTree(NodeFactory::node(root).rightPos);
+	if (!resultMap.contains(root))
+		return EvaluationFailedError("failed.");
 
-		if (leftVal.isError()) return leftVal.getException();
-		if (rightVal.isError()) return rightVal.getException();
-
-		if (Result<Floating> res(evaluateInfix(NodeFactory::node(root).value, leftVal.getValue(), rightVal.getValue())); !res.isError())
-			return res.getValue();
-		else
-			return res.getException();
-	}
-
-	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Postfix) {
-		Result<Floating> rightVal = evaluateExpressionTree(NodeFactory::node(root).rightPos);
-		if (rightVal.isError()) return rightVal.getException();
-
-		if (Result<Floating> res(evaluatePostfix(NodeFactory::node(root).value, rightVal.getValue())); !res.isError())
-			return res.getValue();
-		else
-			return res.getException();
-	}
-
-	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Prefix) {
-		Result<Floating> leftVal = evaluateExpressionTree(NodeFactory::node(root).leftPos);
-		if (leftVal.isError()) return leftVal.getException();
-
-		if (Result<Floating> res(evaluatePrefix(NodeFactory::node(root).value, leftVal.getValue())); !res.isError())
-			return res.getValue();
-		else
-			return res.getException();
-	}
-
-	return EvaluationFailedError("Failed to evaluate expression.");
+	return resultMap[root];
 }
 
 template<std::floating_point Floating>

@@ -33,7 +33,6 @@ bool NodeFactory::validNode(NodePos index) {
 	return iGetInstance().iValidNode(index);
 }
 
-
 void NodeFactory::freeAll() {
 	iGetInstance().iFreeAll();
 }
