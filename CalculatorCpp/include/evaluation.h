@@ -4,8 +4,12 @@
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <memory>
+#include <type_traits>
+
 #include "result.h"
 #include "parser.h"
+#include "nodeFactory.h"
 
 class Parser;
 
@@ -19,26 +23,31 @@ public:
 	explicit EvaluationFailedError(const std::string& msg) : std::runtime_error("EvaluationFailedError: " + msg) {}
 };
 
-template<std::floating_point Floating>
+template <typename T>
+concept Arithmetic = std::is_arithmetic_v<T>;
+
+template <Arithmetic Number>
 class Evaluate {
 private:
 	const Parser& parser;
-	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>> mPrefixOperatorFunctions;
-	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>> mInfixOperatorFunctions;
-	std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>> mPostfixOperatorFunctions;
-	std::unordered_map<Parser::OperatorLexeme, std::function<Floating()>> mConstantOperatorFunctions;
+	std::shared_ptr<std::unordered_map<Parser::Lexeme, std::function<Number(Number)>>> mPrefixOperatorFunctions;
+	std::shared_ptr<std::unordered_map<Parser::Lexeme, std::function<Number(Number, Number)>>> mInfixOperatorFunctions;
+	std::shared_ptr<std::unordered_map<Parser::Lexeme, std::function<Number(Number)>>> mPostfixOperatorFunctions;
+	std::unordered_map<Parser::Lexeme, std::function<Number()>> mConstantOperatorFunctions;
 
 public:
-	explicit Evaluate(const Parser& parser);
-	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating, Floating)>& operatorDefinition);
-	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating)>& operatorDefinition);
-	void addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating()>& operatorDefinition);
-	Result<Floating> evaluateExpressionTree(Parser::Node* root) const;
+	Evaluate(const Parser& parser);
+	Evaluate(const Parser& parser, const Evaluate& other);
+	void addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number(Number, Number)>& operatorDefinition);
+	void addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number(Number)>& operatorDefinition);
+	void addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number()>& operatorDefinition);
+	Result<Number> evaluateExpressionTree(NodeFactory::NodePos root) const;
+
 private:
-	Result<Floating> evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const;
-	Result<Floating> evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const;
-	Result<Floating> evaluatePostfix(const Parser::OperatorLexeme& opr, Floating right) const;
-	Result<Floating> evaluateConstant(const Parser::OperatorLexeme& opr) const;
+	Result<Number> evaluatePrefix(const Parser::Lexeme& opr, Number left) const;
+	Result<Number> evaluateInfix(const Parser::Lexeme& opr, Number left, Number right) const;
+	Result<Number> evaluatePostfix(const Parser::Lexeme& opr, Number right) const;
+	Result<Number> evaluateConstant(const Parser::Lexeme& opr) const;
 };
 
 #include "evaluation_impl.h"

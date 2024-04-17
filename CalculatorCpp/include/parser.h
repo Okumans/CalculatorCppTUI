@@ -1,11 +1,15 @@
 #pragma once
 #include <vector>
+#include <variant>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
 #include <optional>
+
 #include "result.h"
+#include "lexer.h"
+#include "nodeFactory.h"
 
 class ParserSyntaxError : public std::runtime_error {
 public:
@@ -20,22 +24,9 @@ public:
 class Parser {
 public:
 	using OperatorLevel = size_t;
-	using OperatorLexeme = std::string;
-	using BracketLexeme = std::string;
-	using NumberLexeme = std::string;
-	using GeneralLexeme = std::string;
+	using Lexeme = std::string;
 
-	class Node
-	{
-	public:
-		std::string value;
-		Node* left{ nullptr };
-		Node* right{ nullptr };
-
-		explicit Node(const Parser::GeneralLexeme& value);
-	};
-
-	enum class OperatorEvalType {
+	enum class OperatorEvalType : int8_t {
 		Prefix,
 		Infix,
 		Postfix,
@@ -43,25 +34,35 @@ public:
 	};
 
 private:
-	struct {
-		std::unordered_map<Parser::BracketLexeme, Parser::BracketLexeme> openBracketsOperators;
-		std::unordered_map<Parser::BracketLexeme, Parser::BracketLexeme> closeBracketsOperators;
-	} mBracketsOperators;
-	std::unordered_map<OperatorLexeme, OperatorLevel> mOperatorLevels;
-	std::unordered_map<OperatorLexeme, OperatorEvalType> mOperatorEvalTypes;
+	Brackets mBracketsOperators;
+	std::unordered_map<Lexeme, OperatorLevel> mOperatorLevels;
+	std::unordered_map<Lexeme, OperatorEvalType> mOperatorEvalTypes;
+	std::unordered_map<Lexeme, NodeFactory::Node::NodeState> mRawExpressionBracketEvalTypes;
 	bool mIsParserReady{ false };
 
 public:
-	static bool strictedIsNumber(const std::string& lexeme);
-	Result<Node*> createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes) const;
-	void setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs);
-	void setOperatorLevels(const std::vector<std::pair<OperatorLexeme, OperatorLevel>>& operatorPairs);
-	void setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs);
-	bool isOperator(const GeneralLexeme& lexeme) const;
-	OperatorEvalType getOperatorType(const OperatorLexeme& oprLexeme) const;
-	std::vector<GeneralLexeme> parseNumbers(const std::vector<GeneralLexeme>& lexemes) const;
-	std::string printOpertatorTree(Parser::Node* tree);
-	std::optional<ParserNotReadyError> parserReady();
-	static void freeOperatorTree(Parser::Node* tree);
+	static bool strictedIsNumber(const std::string& lexeme, bool veryStrict = false);
 
+	// main functions
+	std::vector<Lexeme> parseNumbers(const std::vector<Lexeme>& lexemes) const;
+	Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, bool returnVector = false) const;
+	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression) const;
+	NodeFactory::NodePos createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const;
+	
+	// setters
+	void setBracketOperators(const std::vector<std::pair<Lexeme, Lexeme>>& bracketPairs);
+	void setOperatorLevels(const std::vector<std::pair<Lexeme, OperatorLevel>>& operatorPairs);
+	void addOperatorLevel(const Lexeme& operatorLexeme, OperatorLevel operatorLevel);
+	void addBracketOperator(const Lexeme& openBracket, const Lexeme& closeBracket);
+	void setOperatorEvalType(const std::vector<std::pair<Lexeme, OperatorEvalType>>& operatorEvalTypePairs);
+	void addOperatorEvalType(const Lexeme& operatorLexme, OperatorEvalType operatorEvalType);
+	void setRawExpressionBracketEvalType(const std::vector<std::pair<Lexeme, NodeFactory::Node::NodeState>>& rawExpressionBracketEvalTypePairs);
+	void addRawExpressionBracketEvalType(const Lexeme& openBracketLexeme, NodeFactory::Node::NodeState rawExpressionBracketEvalType);
+	
+	bool isOperator(const Lexeme& lexeme) const;
+	OperatorEvalType getOperatorType(const Lexeme& oprLexeme) const;
+	std::string printOpertatorTree(NodeFactory::NodePos tree, size_t _level = 0) const;
+
+	std::optional<ParserNotReadyError> parserReady();
+	void _ignore_parserReady();
 };

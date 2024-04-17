@@ -18,11 +18,19 @@ private:
     std::unordered_set<std::string> validWords;
 
 public:
+    TrieTree() = default;
+    TrieTree(const std::vector<std::string>& mainKeywords) {
+        for (const std::string& keyword : mainKeywords)
+            insert(keyword);
+    }
+
     void insert(const std::string& word);
 
     bool search(const std::string& word) const;
 
     bool startsWith(const std::string& prefix) const;
+    
+    bool remove(const std::string& word);
 
     class StartsWithsInstance {
     private:
