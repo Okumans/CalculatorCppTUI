@@ -11,7 +11,7 @@ void NodeFactory::iFreeAll() {
 
 NodeFactory::NodePos NodeFactory::iCreate(const std::string& value) {
 	mNodeData.emplace_back(value);
-	return mNodeData.size() - 1;
+	return static_cast<NodePos>(mNodeData.size()) - 1;
 }
 
 NodeFactory::Node& NodeFactory::iNode(NodePos index) {

@@ -78,6 +78,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <PublicIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;$(PublicIncludeDirectories)</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -93,10 +94,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_MP_STANDALONE</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -112,6 +114,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -124,10 +127,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_MP_STANDALONE</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -168,6 +172,92 @@
     <ClInclude Include="include\initialization.h" />
     <ClInclude Include="include\initialization_impl.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\multiprecision\complex128.hpp" />
+    <ClInclude Include="include\multiprecision\complex_adaptor.hpp" />
+    <ClInclude Include="include\multiprecision\concepts\mp_number_archetypes.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_bin_float.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_bin_float\io.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_bin_float\transcendental.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_complex.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_dec_float.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\add.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\add_unsigned.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\bitwise.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\checked.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\comparison.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\cpp_int_config.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\divide.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\import_export.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\intel_intrinsics.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\limits.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\literals.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\misc.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\multiply.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\serialize.hpp" />
+    <ClInclude Include="include\multiprecision\cpp_int\value_pack.hpp" />
+    <ClInclude Include="include\multiprecision\debug_adaptor.hpp" />
+    <ClInclude Include="include\multiprecision\detail\assert.hpp" />
+    <ClInclude Include="include\multiprecision\detail\atomic.hpp" />
+    <ClInclude Include="include\multiprecision\detail\bitscan.hpp" />
+    <ClInclude Include="include\multiprecision\detail\check_cpp11_config.hpp" />
+    <ClInclude Include="include\multiprecision\detail\constexpr.hpp" />
+    <ClInclude Include="include\multiprecision\detail\default_ops.hpp" />
+    <ClInclude Include="include\multiprecision\detail\digits.hpp" />
+    <ClInclude Include="include\multiprecision\detail\dynamic_array.hpp" />
+    <ClInclude Include="include\multiprecision\detail\empty_value.hpp" />
+    <ClInclude Include="include\multiprecision\detail\endian.hpp" />
+    <ClInclude Include="include\multiprecision\detail\et_ops.hpp" />
+    <ClInclude Include="include\multiprecision\detail\float128_functions.hpp" />
+    <ClInclude Include="include\multiprecision\detail\float_string_cvt.hpp" />
+    <ClInclude Include="include\multiprecision\detail\fpclassify.hpp" />
+    <ClInclude Include="include\multiprecision\detail\functions\constants.hpp" />
+    <ClInclude Include="include\multiprecision\detail\functions\pow.hpp" />
+    <ClInclude Include="include\multiprecision\detail\functions\trig.hpp" />
+    <ClInclude Include="include\multiprecision\detail\functions\trunc.hpp" />
+    <ClInclude Include="include\multiprecision\detail\generic_interconvert.hpp" />
+    <ClInclude Include="include\multiprecision\detail\hash.hpp" />
+    <ClInclude Include="include\multiprecision\detail\integer_ops.hpp" />
+    <ClInclude Include="include\multiprecision\detail\itos.hpp" />
+    <ClInclude Include="include\multiprecision\detail\min_max.hpp" />
+    <ClInclude Include="include\multiprecision\detail\no_et_ops.hpp" />
+    <ClInclude Include="include\multiprecision\detail\no_exceptions_support.hpp" />
+    <ClInclude Include="include\multiprecision\detail\number_base.hpp" />
+    <ClInclude Include="include\multiprecision\detail\number_compare.hpp" />
+    <ClInclude Include="include\multiprecision\detail\precision.hpp" />
+    <ClInclude Include="include\multiprecision\detail\rebind.hpp" />
+    <ClInclude Include="include\multiprecision\detail\standalone_config.hpp" />
+    <ClInclude Include="include\multiprecision\detail\static_array.hpp" />
+    <ClInclude Include="include\multiprecision\detail\string_helpers.hpp" />
+    <ClInclude Include="include\multiprecision\detail\tables.hpp" />
+    <ClInclude Include="include\multiprecision\detail\ublas_interop.hpp" />
+    <ClInclude Include="include\multiprecision\detail\uniform_int_distribution.hpp" />
+    <ClInclude Include="include\multiprecision\detail\utype_helper.hpp" />
+    <ClInclude Include="include\multiprecision\eigen.hpp" />
+    <ClInclude Include="include\multiprecision\float128.hpp" />
+    <ClInclude Include="include\multiprecision\fwd.hpp" />
+    <ClInclude Include="include\multiprecision\gmp.hpp" />
+    <ClInclude Include="include\multiprecision\integer.hpp" />
+    <ClInclude Include="include\multiprecision\logged_adaptor.hpp" />
+    <ClInclude Include="include\multiprecision\miller_rabin.hpp" />
+    <ClInclude Include="include\multiprecision\mpc.hpp" />
+    <ClInclude Include="include\multiprecision\mpfi.hpp" />
+    <ClInclude Include="include\multiprecision\mpfr.hpp" />
+    <ClInclude Include="include\multiprecision\number.hpp" />
+    <ClInclude Include="include\multiprecision\random.hpp" />
+    <ClInclude Include="include\multiprecision\rational_adaptor.hpp" />
+    <ClInclude Include="include\multiprecision\tommath.hpp" />
+    <ClInclude Include="include\multiprecision\traits\explicit_conversion.hpp" />
+    <ClInclude Include="include\multiprecision\traits\extract_exponent_type.hpp" />
+    <ClInclude Include="include\multiprecision\traits\is_backend.hpp" />
+    <ClInclude Include="include\multiprecision\traits\is_byte_container.hpp" />
+    <ClInclude Include="include\multiprecision\traits\is_complex.hpp" />
+    <ClInclude Include="include\multiprecision\traits\is_convertible_arithmetic.hpp" />
+    <ClInclude Include="include\multiprecision\traits\is_restricted_conversion.hpp" />
+    <ClInclude Include="include\multiprecision\traits\is_variable_precision.hpp" />
+    <ClInclude Include="include\multiprecision\traits\max_digits10.hpp" />
+    <ClInclude Include="include\multiprecision\traits\std_integer_traits.hpp" />
+    <ClInclude Include="include\multiprecision\traits\transcendental_reduction_type.hpp" />
     <ClInclude Include="include\nodeFactory.h" />
     <ClInclude Include="include\parser.h" />
     <ClInclude Include="include\result.h" />

@@ -168,7 +168,8 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 
 		if (mSeparatorKeys.contains(chr) || !startWithInst.insertChar(chr)) {
 			clearBuffer();
-			if (startWithInst.insertChar(chr) || (!temp.empty() && mRawStringBracket.openBracketsOperators.contains(temp.back())))
+			if (startWithInst.insertChar(chr) || 
+				(!temp.empty() && mRawStringBracket.openBracketsOperators.contains(temp.back())))
 				buff += chr;
 			continue;
 		}

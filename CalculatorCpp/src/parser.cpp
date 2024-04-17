@@ -75,7 +75,7 @@ bool Parser::strictedIsNumber(const std::string& lexeme, bool veryStrict) {
 		|| ((lexeme[0] == '-' || lexeme[0] == '.') && std::isdigit(lexeme[1])))
 		return true && !veryStrict;
 	if (lexeme.length() >= 3 && (std::isdigit(lexeme[2]) || std::isdigit(lexeme[0])))
-		return true;
+		return true && !veryStrict;
 
 	return std::isdigit(lexeme[0]) && (std::isdigit(lexeme.back()) || !veryStrict);
 }
@@ -92,7 +92,7 @@ static std::string_view trimLeadingZeros(const std::string& str) {
 
 // Parser::Node::Node(const GeneralLexeme& value) : value{ value } {/*std::cout << "(create " << value << ") "; */ }
 
-void Parser::setBracketOperators(const std::vector<std::pair<BracketLexeme, BracketLexeme>>& bracketPairs) {
+void Parser::setBracketOperators(const std::vector<std::pair<Lexeme, Lexeme>>& bracketPairs) {
 	mIsParserReady = false;
 	for (const auto& [openBracket, closeBracket] : bracketPairs) {
 		mBracketsOperators.openBracketsOperators[openBracket] = closeBracket;
@@ -100,59 +100,60 @@ void Parser::setBracketOperators(const std::vector<std::pair<BracketLexeme, Brac
 	}
 }
 
-void Parser::setOperatorLevels(const std::vector<std::pair<OperatorLexeme, OperatorLevel>>& operatorPairs) {
+void Parser::setOperatorLevels(const std::vector<std::pair<Lexeme, OperatorLevel>>& operatorPairs) {
 	mIsParserReady = false;
 	for (const auto& [lexeme, level] : operatorPairs)
 		mOperatorLevels[lexeme] = level;
 }
 
-void Parser::setOperatorEvalType(const std::vector<std::pair<OperatorLexeme, OperatorEvalType>>& operatorEvalTypePairs) {
+void Parser::setOperatorEvalType(const std::vector<std::pair<Lexeme, OperatorEvalType>>& operatorEvalTypePairs) {
 	mIsParserReady = false;
 	for (const auto& [lexeme, evalType] : operatorEvalTypePairs)
 		mOperatorEvalTypes[lexeme] = evalType;
 }
 
-void Parser::addBracketOperator(const BracketLexeme& openBracket, const BracketLexeme& closeBracket)
+void Parser::addBracketOperator(const Lexeme& openBracket, const Lexeme& closeBracket)
 {
 	mIsParserReady = false;
 	mBracketsOperators.openBracketsOperators[openBracket] = closeBracket;
 	mBracketsOperators.closeBracketsOperators[closeBracket] = openBracket;
 }
 
-void Parser::addOperatorLevel(const OperatorLexeme& operatorLexeme, OperatorLevel operatorLevel)
+void Parser::addOperatorLevel(const Lexeme& operatorLexeme, OperatorLevel operatorLevel)
 {
 	mIsParserReady = false;
 	mOperatorLevels[operatorLexeme] = operatorLevel;
 }
 
-void Parser::addOperatorEvalType(const OperatorLexeme& operatorLexme, OperatorEvalType operatorEvalType)
+void Parser::addOperatorEvalType(const Lexeme& operatorLexme, OperatorEvalType operatorEvalType)
 {
 	mIsParserReady = false;
 	mOperatorEvalTypes[operatorLexme] = operatorEvalType;
 }
 
-void Parser::setRawExpressionBracketEvalType(const std::vector<std::pair<BracketLexeme, NodeFactory::Node::NodeState>>& rawExpressionBracketEvalTypePairs)
+void Parser::setRawExpressionBracketEvalType(const std::vector<std::pair<Lexeme, NodeFactory::Node::NodeState>>& rawExpressionBracketEvalTypePairs)
 {
 	mIsParserReady = false;
 	for (const auto& [lexeme, evalType] : rawExpressionBracketEvalTypePairs)
 		mRawExpressionBracketEvalTypes[lexeme] = evalType;
 }
 
-void Parser::addRawExpressionBracketEvalType(const BracketLexeme& openBracketLexeme, NodeFactory::Node::NodeState rawExpressionBracketEvalType)
+void Parser::addRawExpressionBracketEvalType(const Lexeme& openBracketLexeme, NodeFactory::Node::NodeState rawExpressionBracketEvalType)
 {
 	mIsParserReady = false;
 	mRawExpressionBracketEvalTypes[openBracketLexeme] = rawExpressionBracketEvalType;
 }
 
-bool Parser::isOperator(const GeneralLexeme& lexeme) const {
+bool Parser::isOperator(const Lexeme& lexeme) const {
 	return mOperatorEvalTypes.contains(lexeme) || mOperatorLevels.contains(lexeme);
 }
 
-Parser::OperatorEvalType Parser::getOperatorType(const OperatorLexeme& oprLexeme) const {
+
+Parser::OperatorEvalType Parser::getOperatorType(const Lexeme& oprLexeme) const {
 	return mOperatorEvalTypes.at(oprLexeme);
 }
 
-std::vector<std::string> Parser::parseNumbers(const std::vector<GeneralLexeme>& lexemes) const {
+std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes) const {
 	std::vector<std::string> result;
 	std::string numberBuffer{ "" };
 	bool foundDecimalPoint{ false };
@@ -187,7 +188,7 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<GeneralLexeme>& 
 			foundMinusSign = false;
 			numberBuffer.clear();
 		}
-
+		
 		numberBuffer += lexeme;
 	}
 
@@ -235,15 +236,15 @@ static Result<T> topPopNotEmpty(std::stack<T>& stk) {
 	return temp;
 }
 
-Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Parser::createOperatorTree(const std::vector<GeneralLexeme>& parsedLexemes, bool returnVector) const {
+Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Parser::createOperatorTree(const std::vector<Lexeme>& parsedLexemes, bool returnVector) const {
 	if (!mIsParserReady)
 		return ParserNotReadyError("Please run parserReady() first!, To make sure that parser is ready.");
 
 	std::stack<NodeFactory::NodePos> resultStack;
-	std::stack<GeneralLexeme> operatorStack;
+	std::stack<Lexeme> operatorStack;
 
 	for (auto it = parsedLexemes.begin(); it != parsedLexemes.end(); it++) {
-		const Parser::GeneralLexeme parsedLexeme = *it;
+		const Parser::Lexeme parsedLexeme = *it;
 
 		// if is a operand or a constant
 		if (strictedIsNumber(parsedLexeme) || (mOperatorEvalTypes.contains(parsedLexeme) && (mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Constant))) {
@@ -289,10 +290,10 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 
 		// if found close bracket
 		else if (mBracketsOperators.closeBracketsOperators.contains(parsedLexeme)) {
-			BracketLexeme openBracket{ mBracketsOperators.closeBracketsOperators.at(parsedLexeme) };
+			Lexeme openBracket{ mBracketsOperators.closeBracketsOperators.at(parsedLexeme) };
 
 			if (mRawExpressionBracketEvalTypes.contains(openBracket)) {
-				GeneralLexeme operatorNodeValue;
+				Lexeme operatorNodeValue;
 				if (const auto prevIt{ *std::prev(it) }; strictedIsNumber(prevIt) || (mOperatorEvalTypes.contains(prevIt) && mOperatorEvalTypes.at(prevIt) == OperatorEvalType::Constant))
 				{
 					auto operatorNodeRawValue = topPopNotEmpty(resultStack);

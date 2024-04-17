@@ -6,13 +6,13 @@
 
 class NodeFactory {
 public:
-	using NodePos = size_t;
-	static const NodePos NodePosNull = std::numeric_limits<size_t>::max();
+	using NodePos = uint32_t;
+	static const NodePos NodePosNull = std::numeric_limits<NodePos>::max();
 
 	class Node
 	{
 	public:
-		enum class NodeState {
+		enum class NodeState : int8_t {
 			None,
 			LambdaFuntion,
 			Storage
@@ -22,8 +22,8 @@ public:
 		NodeState nodestate{ NodeState::None };
 		std::vector<std::string> utilityStorage;
 
-		NodePos leftPos{ std::numeric_limits<size_t>::max() };
-		NodePos rightPos{ std::numeric_limits<size_t>::max() };
+		NodePos leftPos{ std::numeric_limits<NodePos>::max() };
+		NodePos rightPos{ std::numeric_limits<NodePos>::max() };
 
 		explicit Node(const std::string& value);
 		Node& rightNode();

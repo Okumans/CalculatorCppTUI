@@ -9,35 +9,34 @@
 #include <type_traits>
 #include <ranges>
 #include <format>
-
 #include "result.h"
 #include "parser.h"
 #include "evaluation.h"
 #include "nodeFactory.h"
 
-template<std::floating_point Floating>
-Evaluate<Floating>::Evaluate(const Parser& parser) : parser{ parser },
-mInfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating, Floating)>>>() },
-mPostfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>>() },
-mPrefixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::OperatorLexeme, std::function<Floating(Floating)>>>() } {}
+template <Arithmetic Number>
+Evaluate<Number>::Evaluate(const Parser& parser) : parser{ parser },
+mInfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::Lexeme, std::function<Number(Number, Number)>>>() },
+mPostfixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::Lexeme, std::function<Number(Number)>>>() },
+mPrefixOperatorFunctions{ std::make_shared<std::unordered_map<Parser::Lexeme, std::function<Number(Number)>>>() } {}
 
-template<std::floating_point Floating>
-Evaluate<Floating>::Evaluate(const Parser& parser, const Evaluate<Floating>& other) :
+template <Arithmetic Number>
+Evaluate<Number>::Evaluate(const Parser& parser, const Evaluate<Number>& other) :
 	parser{ parser },
 	mConstantOperatorFunctions{ other.mConstantOperatorFunctions },
 	mInfixOperatorFunctions{ other.mInfixOperatorFunctions },
 	mPostfixOperatorFunctions{ other.mPostfixOperatorFunctions },
 	mPrefixOperatorFunctions{ other.mPrefixOperatorFunctions } {}
 
-template<std::floating_point Floating>
-void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating, Floating)>& operatorDefinition) {
+template <Arithmetic Number>
+void Evaluate<Number>::addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number(Number, Number)>& operatorDefinition) {
 	if (!parser.isOperator(operatorLexeme) || parser.getOperatorType(operatorLexeme) != Parser::OperatorEvalType::Infix)
 		throw EvaluationDefinitionError("operator " + operatorLexeme + " is not consist in infix operators list.");
 	(*mInfixOperatorFunctions)[operatorLexeme] = operatorDefinition;
 }
 
-template<std::floating_point Floating>
-void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating(Floating)>& operatorDefinition) {
+template <Arithmetic Number>
+void Evaluate<Number>::addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number(Number)>& operatorDefinition) {
 	if (parser.isOperator(operatorLexeme) && parser.getOperatorType(operatorLexeme) == Parser::OperatorEvalType::Prefix)
 		(*mPrefixOperatorFunctions)[operatorLexeme] = operatorDefinition;
 	else if (parser.isOperator(operatorLexeme) && parser.getOperatorType(operatorLexeme) == Parser::OperatorEvalType::Postfix)
@@ -46,117 +45,17 @@ void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& opera
 		throw EvaluationDefinitionError("operator " + operatorLexeme + " is not consist in prefix or postfix operators list.");
 }
 
-template<std::floating_point Floating>
-void Evaluate<Floating>::addOperatorFunction(const Parser::OperatorLexeme& operatorLexeme, const std::function<Floating()>& operatorDefinition) {
+template <Arithmetic Number>
+void Evaluate<Number>::addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number()>& operatorDefinition) {
 	if (!parser.isOperator(operatorLexeme) || parser.getOperatorType(operatorLexeme) != Parser::OperatorEvalType::Constant)
 		throw EvaluationDefinitionError("operator " + operatorLexeme + " is not consist in constants list.");
 	mConstantOperatorFunctions[operatorLexeme] = operatorDefinition;
 }
 
-//template<std::floating_point Floating>
-//Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos root) const {
-//	if (!NodeFactory::validNode(root))
-//		return EvaluationFailedError("Failed to evaluate expression.");
-//
-//	// base case if a leaf node.
-//	if (!NodeFactory::validNode(NodeFactory::node(root).leftPos) && !NodeFactory::validNode(NodeFactory::node(root).rightPos)) {
-//		if (NodeFactory::node(root).value == ".")
-//			return 0;
-//		else if (parser.isOperator(NodeFactory::node(root).value) && parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Constant) {
-//			if (Result<Floating> res(evaluateConstant(NodeFactory::node(root).value)); !res.isError())
-//				return res.getValue();
-//			else
-//				return res.getException();
-//		}
-//		return std::stod(NodeFactory::node(root).value);
-//	}
-//
-//	if (NodeFactory::node(root).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-//		std::vector<std::string>& parameters = NodeFactory::node(root).utilityStorage;
-//		Parser pas(this->parser);
-//		Evaluate eval(pas, *this);
-//
-//		std::vector<Floating> arguments;
-//
-//		NodeFactory::NodePos curr = NodeFactory::node(root).rightPos;
-//		while (NodeFactory::validNode(curr)) {
-//			Result<Floating> result = evaluateExpressionTree(NodeFactory::node(curr).leftPos);
-//			EXCEPT_RETURN(result);
-//			arguments.push_back(result.getValue());
-//			curr = NodeFactory::node(curr).rightPos;
-//		}
-//
-//		if (arguments.size() != parameters.size())
-//			return 0;
-//
-//		for (size_t ind{ 0 }, len{ parameters.size() }; ind < len; ind++)
-//		{
-//			eval.mConstantOperatorFunctions[parameters[ind]] = [ind, &arguments]() {return arguments[ind]; };
-//			pas.addOperatorEvalType(parameters[ind], Parser::OperatorEvalType::Constant);
-//		}
-//
-//		Result<Floating> leftVal = eval.evaluateExpressionTree(NodeFactory::node(root).leftPos);
-//		EXCEPT_RETURN(leftVal);
-//
-//		return leftVal.getValue();
-//	}
-//
-//	if (NodeFactory::node(root).nodestate == NodeFactory::Node::NodeState::Storage) {
-//		std::vector<Floating> arguments;
-//
-//		NodeFactory::NodePos curr = NodeFactory::node(root).leftPos;
-//		while (NodeFactory::validNode(curr)) {
-//			Result<Floating> result = evaluateExpressionTree(NodeFactory::node(curr).leftPos);
-//			EXCEPT_RETURN(result);
-//			arguments.push_back(result.getValue());
-//			curr = NodeFactory::node(curr).rightPos;
-//		}
-//
-//		if (arguments.size())
-//			return arguments.back();
-//		return EvaluationFailedError("Cannot evalutate noting.");
-//	}
-//
-//	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Infix) {
-//		Result<Floating> leftVal = evaluateExpressionTree(NodeFactory::node(root).leftPos);
-//		Result<Floating> rightVal = evaluateExpressionTree(NodeFactory::node(root).rightPos);
-//
-//		if (leftVal.isError()) return leftVal.getException();
-//		if (rightVal.isError()) return rightVal.getException();
-//
-//		if (Result<Floating> res(evaluateInfix(NodeFactory::node(root).value, leftVal.getValue(), rightVal.getValue())); !res.isError())
-//			return res.getValue();
-//		else
-//			return res.getException();
-//	}
-//
-//	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Postfix) {
-//		Result<Floating> rightVal = evaluateExpressionTree(NodeFactory::node(root).rightPos);
-//		if (rightVal.isError()) return rightVal.getException();
-//
-//		if (Result<Floating> res(evaluatePostfix(NodeFactory::node(root).value, rightVal.getValue())); !res.isError())
-//			return res.getValue();
-//		else
-//			return res.getException();
-//	}
-//
-//	if (parser.getOperatorType(NodeFactory::node(root).value) == Parser::OperatorEvalType::Prefix) {
-//		Result<Floating> leftVal = evaluateExpressionTree(NodeFactory::node(root).leftPos);
-//		if (leftVal.isError()) return leftVal.getException();
-//
-//		if (Result<Floating> res(evaluatePrefix(NodeFactory::node(root).value, leftVal.getValue())); !res.isError())
-//			return res.getValue();
-//		else
-//			return res.getException();
-//	}
-//
-//	return EvaluationFailedError("Failed to evaluate expression.");
-//}
-
-template<std::floating_point Floating>
-Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos root) const {
+template <Arithmetic Number>
+Result<Number> Evaluate<Number>::evaluateExpressionTree(NodeFactory::NodePos root) const {
 	std::stack<NodeFactory::NodePos> operationStack;
-	std::unordered_map<NodeFactory::NodePos, Floating> resultMap;
+	std::unordered_map<NodeFactory::NodePos, Number> resultMap;
 
 	operationStack.push(root);
 	while (!operationStack.empty()) {
@@ -173,23 +72,23 @@ Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos
 
 			else if (parser.isOperator(currNode.value) &&
 				parser.getOperatorType(currNode.value) == Parser::OperatorEvalType::Constant) {
-				Result<Floating> res(evaluateConstant(currNode.value));
+				Result<Number> res(evaluateConstant(currNode.value));
 				EXCEPT_RETURN(res);
 				resultMap[currNodePos] = res.getValue();
 			}
 			else
-				resultMap[currNodePos] = std::stod(currNode.value);
+				resultMap[currNodePos] = std::stold(currNode.value);
 		}
 
 		else if (currNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
 			const std::vector<std::string>& parameters = currNode.utilityStorage;
-			std::vector<Floating> arguments;
+			std::vector<Number> arguments;
 			Parser pas(this->parser);
 			Evaluate eval(pas, *this);
 
 			NodeFactory::NodePos currArgNodePos = currNode.rightPos;
 			while (NodeFactory::validNode(currArgNodePos)) {
-				Result<Floating> result = evaluateExpressionTree(NodeFactory::node(currArgNodePos).leftPos);
+				Result<Number> result = evaluateExpressionTree(NodeFactory::node(currArgNodePos).leftPos);
 				EXCEPT_RETURN(result);
 				arguments.push_back(result.getValue());
 				currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
@@ -203,18 +102,18 @@ Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos
 				pas.addOperatorEvalType(parameters[ind], Parser::OperatorEvalType::Constant);
 			}
 
-			Result<Floating> leftVal = eval.evaluateExpressionTree(currNode.leftPos);
+			Result<Number> leftVal = eval.evaluateExpressionTree(currNode.leftPos);
 			EXCEPT_RETURN(leftVal);
 
 			resultMap[currNodePos] = leftVal.getValue();
 		}
 
 		else if (currNode.nodestate == NodeFactory::Node::NodeState::Storage) {
-			std::vector<Floating> arguments;
+			std::vector<Number> arguments;
 
 			NodeFactory::NodePos currArgNodePos = currNode.leftPos;
 			while (NodeFactory::validNode(currArgNodePos)) {
-				Result<Floating> result = evaluateExpressionTree(NodeFactory::node(currArgNodePos).leftPos);
+				Result<Number> result = evaluateExpressionTree(NodeFactory::node(currArgNodePos).leftPos);
 				EXCEPT_RETURN(result);
 				arguments.push_back(result.getValue());
 				currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
@@ -222,7 +121,7 @@ Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos
 
 			if (!arguments.size())
 				return EvaluationFailedError("Cannot evalutate noting.");
-			
+
 			resultMap[currNodePos] = arguments.back();
 		}
 
@@ -237,10 +136,10 @@ Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos
 				continue;
 			}
 
-			Floating leftVal{ resultMap[currNode.leftPos] };
-			Floating rightVal{ resultMap[currNode.rightPos] };
+			Number leftVal{ resultMap[currNode.leftPos] };
+			Number rightVal{ resultMap[currNode.rightPos] };
 
-			Result<Floating> res{ evaluateInfix(currNode.value, leftVal, rightVal) };
+			Result<Number> res{ evaluateInfix(currNode.value, leftVal, rightVal) };
 			EXCEPT_RETURN(res);
 			resultMap[currNodePos] = res.getValue();
 		}
@@ -251,8 +150,8 @@ Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos
 				continue;
 			}
 
-			Floating rightVal{ resultMap[currNode.rightPos] };
-			Result<Floating> res{ evaluatePostfix(currNode.value, rightVal) };
+			Number rightVal{ resultMap[currNode.rightPos] };
+			Result<Number> res{ evaluatePostfix(currNode.value, rightVal) };
 			EXCEPT_RETURN(res);
 			resultMap[currNodePos] = res.getValue();
 		}
@@ -263,8 +162,8 @@ Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos
 				continue;
 			}
 
-			Floating leftVal{ resultMap[currNode.leftPos] };
-			Result<Floating> res{ evaluatePrefix(currNode.value, leftVal) };
+			Number leftVal{ resultMap[currNode.leftPos] };
+			Result<Number> res{ evaluatePrefix(currNode.value, leftVal) };
 			EXCEPT_RETURN(res);
 			resultMap[currNodePos] = res.getValue();
 		}
@@ -278,29 +177,29 @@ Result<Floating> Evaluate<Floating>::evaluateExpressionTree(NodeFactory::NodePos
 	return resultMap[root];
 }
 
-template<std::floating_point Floating>
-Result<Floating> Evaluate<Floating>::evaluateInfix(const Parser::OperatorLexeme& opr, Floating left, Floating right) const {
+template <Arithmetic Number>
+Result<Number> Evaluate<Number>::evaluateInfix(const Parser::Lexeme& opr, Number left, Number right) const {
 	if (!mInfixOperatorFunctions->contains(opr))
 		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mInfixOperatorFunctions->at(opr)(left, right);
 }
 
-template<std::floating_point Floating>
-Result<Floating> Evaluate<Floating>::evaluatePostfix(const Parser::OperatorLexeme& opr, Floating right) const {
+template <Arithmetic Number>
+Result<Number> Evaluate<Number>::evaluatePostfix(const Parser::Lexeme& opr, Number right) const {
 	if (!mPostfixOperatorFunctions->contains(opr))
 		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mPostfixOperatorFunctions->at(opr)(right);
 }
 
-template<std::floating_point Floating>
-Result<Floating> Evaluate<Floating>::evaluatePrefix(const Parser::OperatorLexeme& opr, Floating left) const {
+template <Arithmetic Number>
+Result<Number> Evaluate<Number>::evaluatePrefix(const Parser::Lexeme& opr, Number left) const {
 	if (!mPrefixOperatorFunctions->contains(opr))
 		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mPrefixOperatorFunctions->at(opr)(left);
 }
 
-template<std::floating_point Floating>
-Result<Floating> Evaluate<Floating>::evaluateConstant(const Parser::OperatorLexeme& opr) const {
+template <Arithmetic Number>
+Result<Number> Evaluate<Number>::evaluateConstant(const Parser::Lexeme& opr) const {
 	if (!mConstantOperatorFunctions.contains(opr))
 		return EvaluationDefinitionError("Definition for operator " + opr + " not found.");
 	return mConstantOperatorFunctions.at(opr)();

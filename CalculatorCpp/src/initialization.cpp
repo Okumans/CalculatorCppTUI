@@ -81,7 +81,7 @@ std::function<std::vector<std::string>(const std::string&)> initializeStaticLexe
 
 
 void initializeParser(Parser& parser) {
-	const std::vector<std::pair<Parser::BracketLexeme, Parser::BracketLexeme>> mainBracketPairs{
+	const std::vector<std::pair<Parser::Lexeme, Parser::Lexeme>> mainBracketPairs{
 		{"[", "]"},
 		{"(", ")"},
 		{"{", "}"},
@@ -89,7 +89,7 @@ void initializeParser(Parser& parser) {
 		{"<(", ")>"}
 	};
 
-	const std::vector<std::pair<Parser::OperatorLexeme, Parser::OperatorLevel>> mainOperatorLevels{
+	const std::vector<std::pair<Parser::Lexeme, Parser::OperatorLevel>> mainOperatorLevels{
 		{"+", 0},
 		{"-", 0},
 		{"*", 1},
@@ -109,7 +109,7 @@ void initializeParser(Parser& parser) {
 	};
 
 	using EvalType = Parser::OperatorEvalType;
-	const std::vector<std::pair<Parser::OperatorLexeme, Parser::OperatorEvalType>> mainOperatorEvalType{
+	const std::vector<std::pair<Parser::Lexeme, Parser::OperatorEvalType>> mainOperatorEvalType{
 		{"+", EvalType::Infix},
 		{"-", EvalType::Infix},
 		{"*", EvalType::Infix},

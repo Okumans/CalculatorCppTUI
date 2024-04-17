@@ -15,7 +15,9 @@
 #define DEBUG
 #include "debug.cpp"
 
-int main()
+#include <iomanip>
+
+int main(int argc, char* argv[])
 {
 	Lexer lex;
 	initializeLexer(lex);
@@ -26,14 +28,18 @@ int main()
 	Evaluate<double> eval(pas);
 	initializeEvaluator(eval);
 
+	std::string input{};
+	if (argc >= 2) {
+		input = argv[1];
+	}
+
 	size_t count{ 0 };
-	while (++count)
+	while (++count && (argc < 2 || count == 1))
 	{
 		std::cout << "\n## EXPRESSION: " << count << "##\n";
 		std::cout << "Expression = ";
-		std::string input{};
 
-		std::getline(std::cin, input);
+		!(argc >= 2) && std::getline(std::cin, input);
 
 		if (input == "quit")
 			return 0;
@@ -47,7 +53,9 @@ int main()
 
 		auto parsedResult = pas.parseNumbers(lexResult);
 
+		ss.str("");
 		ss.clear();
+
 		ss << parsedResult;
 
 		std::cout << "Parsing Number: " << ss.str().substr(0, 1000) << "\n";
@@ -61,7 +69,7 @@ int main()
 				std::cout << "Operation Tree: " << pas.printOpertatorTree(rootVal) << "\n";
 
 				if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
-					std::cout << "Result: " << result.getValue() << "\n";
+					std::cout << "Result: " << std::fixed << result.getValue() << "\n";
 				else
 					std::cout << "ERROR: " << result.getException().what() << "\n";
 
@@ -71,7 +79,6 @@ int main()
 				std::cout << "ERROR: " << root.getException().what() << "\n";
 			}
 		}
-
 	}
 
 	return 0;
