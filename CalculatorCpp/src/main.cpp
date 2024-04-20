@@ -28,6 +28,18 @@ int main(int argc, char* argv[])
 	Evaluate<double> eval(pas);
 	initializeEvaluator(eval);
 
+	OperatorDefiner oprDef(lex, pas, eval);
+	using NumberType = decltype(oprDef)::FloatingType;
+
+	static std::unordered_map<NumberType, NumberType> memory;
+	oprDef.defineOperator("setmem", 9, Parser::OperatorEvalType::Infix, [](NumberType a, NumberType b) {
+		memory[static_cast<int>(a)] = b;
+		return 0;
+		});
+	oprDef.defineOperator("readmem", 9, Parser::OperatorEvalType::Postfix, [](NumberType a) {
+		return memory[static_cast<int>(a)];
+		});
+
 	std::string input{};
 	if (argc >= 2) {
 		input = argv[1];

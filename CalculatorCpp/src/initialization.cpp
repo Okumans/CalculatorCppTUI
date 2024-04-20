@@ -37,6 +37,8 @@ const std::vector<std::string> mainKeywords{
 	"~",
 	"e",
 	"pi",
+	"setmem",
+	"readmem"
 };
 
 static std::vector<std::pair<std::string, std::string>> splitIntoPairs(const std::vector<std::string>& vec) {
@@ -106,6 +108,8 @@ void initializeParser(Parser& parser) {
 		{"log2", 9},
 		{"e", 9},
 		{"pi", 9},
+		{"readmem", 9},
+		{"setmem", 9},
 	};
 
 	using EvalType = Parser::OperatorEvalType;
@@ -126,6 +130,8 @@ void initializeParser(Parser& parser) {
 		{"log2", EvalType::Postfix},
 		{"e", EvalType::Constant},
 		{"pi", EvalType::Constant},
+		{"readmem", EvalType::Postfix},
+		{"setmem", EvalType::Infix},
 	};
 
 	parser.setBracketOperators(mainBracketPairs);

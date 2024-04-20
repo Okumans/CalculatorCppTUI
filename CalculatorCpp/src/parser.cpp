@@ -148,7 +148,6 @@ bool Parser::isOperator(const Lexeme& lexeme) const {
 	return mOperatorEvalTypes.contains(lexeme) || mOperatorLevels.contains(lexeme);
 }
 
-
 Parser::OperatorEvalType Parser::getOperatorType(const Lexeme& oprLexeme) const {
 	return mOperatorEvalTypes.at(oprLexeme);
 }
@@ -188,7 +187,7 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes
 			foundMinusSign = false;
 			numberBuffer.clear();
 		}
-		
+
 		numberBuffer += lexeme;
 	}
 
@@ -414,9 +413,9 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 
 	if (returnVector)
 	{
-		std::vector<NodeFactory::NodePos> tmp;
-		while (!resultStack.empty()) {
-			tmp.push_back(resultStack.top());
+		std::vector<NodeFactory::NodePos> tmp(resultStack.size(), NodeFactory::NodePosNull);
+		for (size_t i{ resultStack.size() }; i > 0; i--) {
+			tmp[i - 1] = resultStack.top();
 			resultStack.pop();
 		}
 		return std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>(tmp);
@@ -431,7 +430,7 @@ NodeFactory::NodePos Parser::createRawExpressionStorage(const std::vector<NodeFa
 
 	NodeFactory::node(tail).leftPos = parsedExpressions.front();
 
-	for (size_t i{ parsedExpressions.size() - 1 }; i > 0; i--)
+	for (size_t i{ 1 }; i < parsedExpressions.size(); i++)
 	{
 		NodeFactory::NodePos curr = NodeFactory::create();
 		NodeFactory::node(curr).leftPos = parsedExpressions[i];
@@ -490,6 +489,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 
 		auto operatorNode = NodeFactory::create(std::format("storage-{:x}", randomNumber()));
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Storage;
+		std::cout << "log:" << std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue) << "\n";
 		NodeFactory::node(operatorNode).leftPos = createRawExpressionStorage(std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue));
 
 		return operatorNode;
@@ -514,11 +514,24 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level)
 
 	// if a lambda function
 	if (treeNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
+		const std::vector<std::string>& parameters = treeNode.utilityStorage;
+		std::vector<std::string> arguments;
+
+		// get argument values
+		NodeFactory::NodePos currArgNodePos = treeNode.rightPos;
+		while (NodeFactory::validNode(currArgNodePos)) {
+			std::string result = printOpertatorTree(NodeFactory::node(currArgNodePos).leftPos);
+			arguments.push_back(result);
+			currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
+		}
+
 		result << "<";
-		for (const std::string& str : treeNode.utilityStorage)
-			result << str << ", ";
+		for (size_t i{ 0 }, par{ parameters.size() }, arg{ arguments.size() }, len{ std::max(par, arg) }; i < len; i++) {
+			result << ((i < par) ? parameters[i] : "null") << (arg ? ("(" + ((i < arg) ? arguments[i] : "null") + ")") : "") << ", ";
+		}
+
 		treeNode.utilityStorage.size() && result.seekp(-2, std::ios_base::end);
-		result << ">" << treeNode.value << "{" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos, _level+1) : "null") << "}";
+		result << ">" << treeNode.value << "{" << (NodeFactory::validNode(treeNode.leftPos) ? printOpertatorTree(treeNode.leftPos, _level + 1) : "null") << "}";
 		return result.str();
 	}
 
