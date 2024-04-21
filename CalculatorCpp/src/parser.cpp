@@ -25,17 +25,9 @@
 
 constexpr size_t STACK_CALL_LIMIT = 500;
 
-static std::string strip(std::string in)
-{
-	in.erase(std::remove_if(in.begin(), in.end(), [](std::string::value_type ch)
-		{ return !isalpha(ch); }
-	), in.end());
-	return in;
-}
-
 static auto splitString(std::string_view in, char sep) {
 	std::vector<std::string_view> r;
-	r.reserve(std::count(in.begin(), in.end(), sep) + 1); // optional
+	r.reserve(std::ranges::count(in, sep) + 1); // optional
 	for (auto p = in.begin();; ++p) {
 		auto q = p;
 		p = std::find(p, in.end(), sep);
@@ -437,8 +429,20 @@ NodeFactory::NodePos Parser::createRawExpressionStorage(const std::vector<NodeFa
 		NodeFactory::node(tail).rightPos = curr;
 		tail = curr;
 	}
-
 	return root;
+}
+
+bool Parser::checkIfValidParameterName(const std::string& parameter) const {
+	if (strictedIsNumber(parameter, true))
+		return false;
+	if (mOperatorEvalTypes.contains(parameter))
+		return false;
+	if (mBracketsOperators.closeBracketsOperators.contains(parameter) ||
+		mBracketsOperators.openBracketsOperators.contains(parameter))
+		return false;
+	if (mRawExpressionBracketEvalTypes.contains(parameter))
+		return false;
+	return true;
 }
 
 Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression) const
@@ -449,23 +453,29 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 	bool isLambdaFunction{ false };
 	Parser pas(*this);
 
-	if (auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') }; variableSpilterIndex != RawExpression.end()) {
+	std::vector<std::string> rawExpressionLexemes = initializeStaticLexer({",", ";"})(RawExpression);
+
+	auto variableSpilterIndexExist{ std::ranges::find(rawExpressionLexemes, ";") };
+	auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') };
+
+	if (variableSpilterIndexExist != rawExpressionLexemes.end() && variableSpilterIndex != RawExpression.end()) {
 		rawVariablesExpression = std::string_view(RawExpression.begin(), variableSpilterIndex);
 		rawOperationTree = std::string_view(++variableSpilterIndex, RawExpression.end());
 
-		for (const auto splited : splitString(rawVariablesExpression, ','))
-		{
+		isLambdaFunction = true;
+		for (const auto& splited : splitString(rawVariablesExpression, ',')) {
+			if (!checkIfValidParameterName(std::string(splited)))
+				return ParserSyntaxError(std::format("Parameter cannot be named \"{}\", Parameter name cannot be consisted in operator named, cannot be a number and cannot be any bracket.", splited));
+
 			variableLexemes.emplace_back(splited);
 			pas.addOperatorEvalType(std::string(splited), OperatorEvalType::Constant);
 			pas.addOperatorLevel(std::string(splited), 9);
 		}
-
-		isLambdaFunction = true;
 	}
 
-	auto operationTree = initializeStaticLexer(variableLexemes)(rawOperationTree.data());
+	auto operationTree = initializeStaticLexer(variableLexemes)(std::string(rawOperationTree));
 	auto parsedNumberOperationTree = parseNumbers(operationTree);
-
+	
 	pas._ignore_parserReady();
 	if (isLambdaFunction) {
 		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree);
@@ -489,9 +499,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 
 		auto operatorNode = NodeFactory::create(std::format("storage-{:x}", randomNumber()));
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Storage;
-		std::cout << "log:" << std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue) << "\n";
 		NodeFactory::node(operatorNode).leftPos = createRawExpressionStorage(std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue));
-
 		return operatorNode;
 	}
 }

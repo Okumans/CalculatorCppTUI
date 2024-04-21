@@ -16,7 +16,6 @@ const std::vector<std::string> mainKeywords{
 	"/",
 	"//",
 	"^",
-	"e+",
 	"!",
 	"sqrt",
 	"abs",
@@ -66,8 +65,7 @@ std::function<std::vector<std::string>(const std::string&)> initializeStaticLexe
 	static Brackets rawStringBracket{splitIntoPairs(mainRawStringBracket)};
 	static std::queue<std::string> skeduleRemove;
 
-	while (!skeduleRemove.empty())
-	{
+	while (!skeduleRemove.empty()) {
 		keywordTree.remove(skeduleRemove.front());
 		skeduleRemove.pop();
 	}
@@ -99,7 +97,6 @@ void initializeParser(Parser& parser) {
 		{"//", 1},
 		{"!", 9},
 		{"~", 9},
-		{"e+", 2},
 		{"^", 2},
 		{"sqrt", 9},
 		{"abs", 9},
@@ -121,7 +118,6 @@ void initializeParser(Parser& parser) {
 		{"//", EvalType::Infix},
 		{"!", EvalType::Prefix},
 		{"~", EvalType::Postfix},
-		{"e+", EvalType::Infix},
 		{"^", EvalType::Infix},
 		{"sqrt", EvalType::Postfix},
 		{"abs", EvalType::Postfix},

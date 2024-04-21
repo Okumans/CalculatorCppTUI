@@ -16,7 +16,6 @@ void initializeEvaluator(Evaluate<Floating>& evaluator) {
 	evaluator.addOperatorFunction("!", [](Floating a) {return (Floating)std::tgamma(a + 1); });
 	evaluator.addOperatorFunction("~", [](Floating a) {return (Floating)!(bool)a; });
 	evaluator.addOperatorFunction("sqrt", [](Floating a) {return std::sqrt(a); });
-	evaluator.addOperatorFunction("e+", [](Floating a, Floating b) {return a * std::pow(10, b); });
 	evaluator.addOperatorFunction("k", [](Floating a) {return a * 1000; });
 	evaluator.addOperatorFunction("ln", [](Floating a) {return std::log(a); });
 	evaluator.addOperatorFunction("log2", [](Floating a) {return std::log2(a); });

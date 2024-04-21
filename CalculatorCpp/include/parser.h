@@ -65,4 +65,6 @@ public:
 
 	std::optional<ParserNotReadyError> parserReady();
 	void _ignore_parserReady();
+private:
+	bool checkIfValidParameterName(const std::string& parameter) const;
 };
