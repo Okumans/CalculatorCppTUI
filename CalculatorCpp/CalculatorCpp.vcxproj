@@ -261,6 +261,13 @@
     <ClInclude Include="include\nodeFactory.h" />
     <ClInclude Include="include\parser.h" />
     <ClInclude Include="include\result.h" />
+    <ClInclude Include="include\runtimeType.h" />
+    <ClInclude Include="include\runtimeTypedExprComponent.h" />
+    <ClInclude Include="include\runtimeTypedExprComponent_impl_lambda.h" />
+    <ClInclude Include="include\runtimeTypedExprComponent_impl_number.h" />
+    <ClInclude Include="include\runtimeTypedExprComponent_impl_storage.h" />
+    <ClInclude Include="include\runtimeTypeExprComponent_impl_utility.h" />
+    <ClInclude Include="include\runtimeType_impl.h" />
     <ClInclude Include="include\trieTree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

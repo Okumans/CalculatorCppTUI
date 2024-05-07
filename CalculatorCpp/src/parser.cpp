@@ -449,11 +449,11 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 {
 	std::string_view rawVariablesExpression;
 	std::string_view rawOperationTree(RawExpression);
-	std::vector<std::string> variableLexemes;
-	bool isLambdaFunction{ false };
+	std::vector <std::pair<std::string, RuntimeType>> variableLexemesWithTypes;
+	bool foundParameterSlot{ false };
 	Parser pas(*this);
 
-	std::vector<std::string> rawExpressionLexemes = initializeStaticLexer({",", ";"})(RawExpression);
+	std::vector<std::string> rawExpressionLexemes = initializeStaticLexer({",", ";", "Number", "Storage", "Lambda"})(RawExpression);
 
 	auto variableSpilterIndexExist{ std::ranges::find(rawExpressionLexemes, ";") };
 	auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') };
@@ -462,22 +462,60 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 		rawVariablesExpression = std::string_view(RawExpression.begin(), variableSpilterIndex);
 		rawOperationTree = std::string_view(++variableSpilterIndex, RawExpression.end());
 
-		isLambdaFunction = true;
+		foundParameterSlot = true;
 		for (const auto& splited : splitString(rawVariablesExpression, ',')) {
-			if (!checkIfValidParameterName(std::string(splited)))
-				return ParserSyntaxError(std::format("Parameter cannot be named \"{}\", Parameter name cannot be consisted in operator named, cannot be a number and cannot be any bracket.", splited));
+			std::vector<std::string_view> variableWithType(splitString(splited, ':'));
+			std::string variableName(variableWithType[0]);
+			RuntimeType variableType = RuntimeBaseType::Number;
 
-			variableLexemes.emplace_back(splited);
-			pas.addOperatorEvalType(std::string(splited), OperatorEvalType::Constant);
-			pas.addOperatorLevel(std::string(splited), 9);
+			if (variableWithType.size() > 2)
+				return ParserSyntaxError(
+					std::format(
+						"The parameter syntax should follow the format <variable name>: <variable type>. but found more than two colons are found at \"{}\".",
+						splited
+					)
+				);
+
+			if (variableWithType.size() == 2) {
+				Result<RuntimeType, std::runtime_error> parsedRuntimeTypeResult{ 
+					RuntimeCompoundType::ParseString(std::string(variableWithType[1])) 
+				};
+
+				if (parsedRuntimeTypeResult.isError())
+					return ParserSyntaxError(
+						parsedRuntimeTypeResult.getException(),
+						"When attempting to parse the type of a lambda function parameter.",
+						"Parser::createRawExpressionOperatorTree");
+
+				variableType = parsedRuntimeTypeResult.getValue();
+			}
+
+
+			if (!checkIfValidParameterName(variableName))
+				return ParserSyntaxError(
+					std::format(
+						"The parameter name \"{}\" is not valid. Parameter names cannot be operators, numbers, or brackets.", 
+						variableName
+					)
+				);
+
+			variableLexemesWithTypes.emplace_back(variableName, variableType);
+			pas.addOperatorEvalType(variableName, OperatorEvalType::Constant);
+			pas.addOperatorLevel(variableName, 9);
 		}
+
+		foundParameterSlot = true;
 	}
+	
+	std::vector<std::string> variableLexemes;
+	for (const auto& variableLexemeWithTypes : variableLexemesWithTypes)
+		variableLexemes.emplace_back(variableLexemeWithTypes.first);
 
 	auto operationTree = initializeStaticLexer(variableLexemes)(std::string(rawOperationTree));
 	auto parsedNumberOperationTree = parseNumbers(operationTree);
 	
 	pas._ignore_parserReady();
-	if (isLambdaFunction) {
+	if (foundParameterSlot) {
 		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree);
 		EXCEPT_RETURN(fullyParsedOperationTree);
 
@@ -486,7 +524,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 		auto operatorNode = NodeFactory::create(std::format("lambda-{:x}", randomNumber()));
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::LambdaFuntion;
 		NodeFactory::node(operatorNode).leftPos = std::get<NodeFactory::NodePos>(fullyParsedOperationTreeValue);
-		NodeFactory::node(operatorNode).utilityStorage = variableLexemes;
+		NodeFactory::node(operatorNode).utilityStorage = variableLexemesWithTypes;
 
 		return operatorNode;
 	}
@@ -522,7 +560,7 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level)
 
 	// if a lambda function
 	if (treeNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-		const std::vector<std::string>& parameters = treeNode.utilityStorage;
+		const std::vector <std::pair<std::string, RuntimeType>> &parameters = treeNode.utilityStorage;
 		std::vector<std::string> arguments;
 
 		// get argument values
@@ -535,7 +573,7 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level)
 
 		result << "<";
 		for (size_t i{ 0 }, par{ parameters.size() }, arg{ arguments.size() }, len{ std::max(par, arg) }; i < len; i++) {
-			result << ((i < par) ? parameters[i] : "null") << (arg ? ("(" + ((i < arg) ? arguments[i] : "null") + ")") : "") << ", ";
+			result << ((i < par) ? parameters[i].first : "null") << ":" << ((i < par) ? parameters[i].second : RuntimeBaseType::_Storage) << (arg ? ("(" + ((i < arg) ? arguments[i] : "null") + ")") : "") << ", ";
 		}
 
 		treeNode.utilityStorage.size() && result.seekp(-2, std::ios_base::end);

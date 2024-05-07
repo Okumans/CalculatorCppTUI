@@ -11,14 +11,26 @@
 #include "lexer.h"
 #include "nodeFactory.h"
 
-class ParserSyntaxError : public std::runtime_error {
-public:
-	explicit ParserSyntaxError(const std::string& msg) : std::runtime_error("ParserSyntaxError: " + msg) {}
-};
-
 class ParserNotReadyError : public std::runtime_error {
 public:
 	explicit ParserNotReadyError(const std::string& msg) : std::runtime_error("ParserSyntaxError: " + msg) {}
+};
+
+
+// Custom exception class for runtime type errors
+class ParserSyntaxError: public std::runtime_error {
+public:
+	// Constructor with a single message
+	explicit ParserSyntaxError(const std::string& message)
+		: std::runtime_error("ParserSyntaxError: " + message) {}
+
+	// Constructor with message and origin information
+	explicit ParserSyntaxError(const std::string& message, const std::string from)
+		: std::runtime_error("ParserSyntaxError: " + message + " (from: " + from + ")") {}
+
+	// Constructor with chained error, message, and origin information
+	explicit ParserSyntaxError(const std::runtime_error& baseError, const std::string& message, const std::string from)
+		: std::runtime_error("ParserSyntaxError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
 };
 
 class Parser {

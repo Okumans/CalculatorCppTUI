@@ -1,4 +1,5 @@
 #pragma once
+
 #include <exception>
 #include <string>
 #include <variant>
@@ -22,26 +23,32 @@ template <typename T, typename E = std::exception>
 class Result {
 private:
     std::variant<T, E> mValueOrException;
-    bool mIsError;
 
 public:
-    Result(const T& value) : mValueOrException(value), mIsError(false) {}
-    Result(const E& exception) : mValueOrException(exception), mIsError(true) {}
-    Result(const Result& other) : mValueOrException(other.mValueOrException), mIsError(other.mIsError) {}
+    Result(const T& value) : mValueOrException(value) {}
+    Result(T&& value) : mValueOrException(std::move(value)) {}
+    Result(const E& exception) : mValueOrException(exception) {}
+    Result(E&& exception) : mValueOrException(std::move(exception)) {}
+    Result(const Result& other) : mValueOrException(other.mValueOrException) {}
+    Result(Result&& other) : mValueOrException(std::move(other.mValueOrException)) {}
 
     bool isError() const {
-        return mIsError;
+        return std::holds_alternative<E>(mValueOrException);
     }
 
-    T getValue() const {
+    const T& getValue() const {
         return std::get<T>(mValueOrException);
     }
 
-    E getException() const {
+    const E& getException() const {
         return std::get<E>(mValueOrException);
     }
 
-    T getValue_or(T orValue) const {
-        return mIsError ? orValue : std::get<T>(mValueOrException);
+    const T& getValue_or(const T& orValue) const {
+        return isError() ? orValue : std::get<T>(mValueOrException);
+    }
+
+    T&& getValue_or(T&& orValue) const {
+        return isError() ? std::move(orValue) : std::get<T>(mValueOrException);
     }
 };

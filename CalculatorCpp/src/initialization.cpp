@@ -8,7 +8,7 @@
 #include "nodeFactory.h"
 
 const std::unordered_set<char> mainSeparatorKeys{ ' ', '\n', '\t' };
-const std::vector<std::string> mainRawStringBracket{ "<[", "]>", "<(", ")>" };
+const std::vector<std::string> mainRawStringBracket{ "{", "}", "[", "]" };
 const std::vector<std::string> mainKeywords{
 	"+",
 	"-",
@@ -25,10 +25,6 @@ const std::vector<std::string> mainKeywords{
 	")",
 	"{",
 	"}",
-	"<[",
-	"]>",
-	"<(",
-	")>",
 	".",
 	"k",
 	"ln",
@@ -53,8 +49,8 @@ static std::vector<std::pair<std::string, std::string>> splitIntoPairs(const std
 }
 
 void initializeLexer(Lexer& lexer) {
-	lexer.addRawStringBracket("<[", "]>");
-	lexer.addRawStringBracket("<(", ")>");
+	lexer.addRawStringBracket("{", "}");
+	lexer.addRawStringBracket("[", "]");
 	lexer.setKeywords(mainKeywords);
 	lexer.setSeperatorKeys(mainSeparatorKeys);
 }
@@ -85,8 +81,6 @@ void initializeParser(Parser& parser) {
 		{"[", "]"},
 		{"(", ")"},
 		{"{", "}"},
-		{"<[", "]>"},
-		{"<(", ")>"}
 	};
 
 	const std::vector<std::pair<Parser::Lexeme, Parser::OperatorLevel>> mainOperatorLevels{
@@ -134,6 +128,6 @@ void initializeParser(Parser& parser) {
 	parser.setOperatorLevels(mainOperatorLevels);
 	parser.setOperatorEvalType(mainOperatorEvalType);
 
-	parser.setRawExpressionBracketEvalType({ {"<[", NodeFactory::Node::NodeState::LambdaFuntion} });
-	parser.setRawExpressionBracketEvalType({ {"<(", NodeFactory::Node::NodeState::Storage} });
+	parser.setRawExpressionBracketEvalType({ {"{", NodeFactory::Node::NodeState::LambdaFuntion} });
+	parser.setRawExpressionBracketEvalType({ {"[", NodeFactory::Node::NodeState::Storage} });
 }

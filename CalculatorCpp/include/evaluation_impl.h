@@ -81,7 +81,7 @@ Result<Number> Evaluate<Number>::evaluateExpressionTree(NodeFactory::NodePos roo
 		}
 
 		else if (currNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-			const std::vector<std::string>& parameters = currNode.utilityStorage;
+			const std::vector<std::pair<std::string, RuntimeType>> &parameters = currNode.utilityStorage;
 			std::vector<Number> arguments;
 			Parser pas(this->parser);
 			Evaluate eval(pas, *this);
@@ -98,8 +98,8 @@ Result<Number> Evaluate<Number>::evaluateExpressionTree(NodeFactory::NodePos roo
 				return ParserSyntaxError(std::format("parameters size must be equal to argument size! ({}!={})", arguments.size(), parameters.size()));
 
 			for (size_t ind{ 0 }, len{ parameters.size() }; ind < len; ind++) {
-				eval.mConstantOperatorFunctions[parameters[ind]] = [ind, &arguments]() {return arguments[ind]; };
-				pas.addOperatorEvalType(parameters[ind], Parser::OperatorEvalType::Constant);
+				eval.mConstantOperatorFunctions[parameters[ind].first] = [ind, &arguments]() {return arguments[ind]; };
+				pas.addOperatorEvalType(parameters[ind].first, Parser::OperatorEvalType::Constant);
 			}
 
 			Result<Number> leftVal = eval.evaluateExpressionTree(currNode.leftPos);
