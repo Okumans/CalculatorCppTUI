@@ -14,11 +14,11 @@ const std::vector<std::string> mainKeywords{
 	"-",
 	"*",
 	"/",
-	"//",
+	//"//",
+	//"!",
 	"^",
-	"!",
 	"sqrt",
-	"abs",
+	//"abs",
 	"[",
 	"]",
 	"(",
@@ -26,14 +26,14 @@ const std::vector<std::string> mainKeywords{
 	"{",
 	"}",
 	".",
-	"k",
-	"ln",
-	"log2",
-	"~",
+	//"k",
+	//"ln",
+	//"log2",
+	//"~",
 	"e",
-	"pi",
-	"setmem",
-	"readmem"
+	//"pi",
+	//"setmem",
+	//"readmem"
 };
 
 static std::vector<std::pair<std::string, std::string>> splitIntoPairs(const std::vector<std::string>& vec) {
@@ -55,7 +55,7 @@ void initializeLexer(Lexer& lexer) {
 	lexer.setSeperatorKeys(mainSeparatorKeys);
 }
 
-std::function<std::vector<std::string>(const std::string&)> initializeStaticLexer(const std::vector<std::string>& extendsKeywords) {
+std::function<std::vector<std::string>(const std::string&)> initializeStaticLexer(const std::vector<std::string> &extendsKeywords) {
 	static TrieTree keywordTree(mainKeywords);
 	static TrieTree rawStringBracketKeywordTree(mainRawStringBracket);
 	static Brackets rawStringBracket{splitIntoPairs(mainRawStringBracket)};
@@ -72,7 +72,25 @@ std::function<std::vector<std::string>(const std::string&)> initializeStaticLexe
 	}
 
 	return [](const std::string& content) {return Lexer::lexing(keywordTree, rawStringBracketKeywordTree, mainSeparatorKeys, rawStringBracket, content); };
+}
 
+std::function<std::vector<std::string>(const std::string&)> initializeStaticLexer(const std::unordered_set<std::string>& extendsKeywords) {
+	static TrieTree keywordTree(mainKeywords);
+	static TrieTree rawStringBracketKeywordTree(mainRawStringBracket);
+	static Brackets rawStringBracket{ splitIntoPairs(mainRawStringBracket) };
+	static std::queue<std::string> skeduleRemove;
+
+	while (!skeduleRemove.empty()) {
+		keywordTree.remove(skeduleRemove.front());
+		skeduleRemove.pop();
+	}
+
+	for (const std::string& extendsKeyword : extendsKeywords) {
+		keywordTree.insert(extendsKeyword);
+		skeduleRemove.emplace(extendsKeyword);
+	}
+
+	return [](const std::string& content) {return Lexer::lexing(keywordTree, rawStringBracketKeywordTree, mainSeparatorKeys, rawStringBracket, content); };
 }
 
 
@@ -88,19 +106,19 @@ void initializeParser(Parser& parser) {
 		{"-", 0},
 		{"*", 1},
 		{"/", 1},
-		{"//", 1},
-		{"!", 9},
-		{"~", 9},
+		//{"//", 1},
+		//{"!", 9},
+		//{"~", 9},
 		{"^", 2},
 		{"sqrt", 9},
-		{"abs", 9},
-		{"k", 9},
-		{"ln", 9},
-		{"log2", 9},
+		//{"abs", 9},
+		//{"k", 9},
+		//{"ln", 9},
+		//{"log2", 9},
 		{"e", 9},
-		{"pi", 9},
-		{"readmem", 9},
-		{"setmem", 9},
+		//{"pi", 9},
+		//{"readmem", 9},
+		//{"setmem", 9},
 	};
 
 	using EvalType = Parser::OperatorEvalType;
@@ -109,19 +127,19 @@ void initializeParser(Parser& parser) {
 		{"-", EvalType::Infix},
 		{"*", EvalType::Infix},
 		{"/", EvalType::Infix},
-		{"//", EvalType::Infix},
-		{"!", EvalType::Prefix},
-		{"~", EvalType::Postfix},
+		//{"//", EvalType::Infix},
+		//{"!", EvalType::Prefix},
+		//{"~", EvalType::Postfix},
 		{"^", EvalType::Infix},
 		{"sqrt", EvalType::Postfix},
-		{"abs", EvalType::Postfix},
-		{"k", EvalType::Prefix},
-		{"ln", EvalType::Postfix},
-		{"log2", EvalType::Postfix},
+		//{"abs", EvalType::Postfix},
+		//{"k", EvalType::Prefix},
+		//{"ln", EvalType::Postfix},
+		//{"log2", EvalType::Postfix},
 		{"e", EvalType::Constant},
-		{"pi", EvalType::Constant},
-		{"readmem", EvalType::Postfix},
-		{"setmem", EvalType::Infix},
+		//{"pi", EvalType::Constant},
+		//{"readmem", EvalType::Postfix},
+		//{"setmem", EvalType::Infix},
 	};
 
 	parser.setBracketOperators(mainBracketPairs);

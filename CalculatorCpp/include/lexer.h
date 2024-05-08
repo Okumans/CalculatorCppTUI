@@ -11,7 +11,7 @@ struct Brackets {
 	std::unordered_map<std::string, std::string> openBracketsOperators;
 	std::unordered_map<std::string, std::string> closeBracketsOperators;
 
-	Brackets(const std::vector<std::pair<std::string, std::string>>& pairs) {
+	explicit Brackets(const std::vector<std::pair<std::string, std::string>>& pairs) {
 		for (const auto& [open, close] : pairs) {
 			openBracketsOperators[open] = close;
 			closeBracketsOperators[close] = open;

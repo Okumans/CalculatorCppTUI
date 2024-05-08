@@ -11,10 +11,13 @@
 #include <chrono>
 #include <random>
 #include <format>
+#include <regex>
 
 #include "parser.h"
 #include "result.h"
 #include "lexer.h"
+#include "runtimeType.h"
+#include "runtimeTypedExprComponent.h"
 
 #define DEBUG
 #include "debug.cpp"
@@ -24,18 +27,6 @@
 #include "initialization.h"
 
 constexpr size_t STACK_CALL_LIMIT = 500;
-
-static auto splitString(std::string_view in, char sep) {
-	std::vector<std::string_view> r;
-	r.reserve(std::ranges::count(in, sep) + 1); // optional
-	for (auto p = in.begin();; ++p) {
-		auto q = p;
-		p = std::find(p, in.end(), sep);
-		r.emplace_back(q, p);
-		if (p == in.end())
-			return r;
-	}
-}
 
 static int randomNumber() {
 	static std::mt19937 gen(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
@@ -66,10 +57,8 @@ bool Parser::strictedIsNumber(const std::string& lexeme, bool veryStrict) {
 	if (lexeme.length() == 2 && (lexeme[0] == '-' && lexeme[1] == '.')
 		|| ((lexeme[0] == '-' || lexeme[0] == '.') && std::isdigit(lexeme[1])))
 		return true && !veryStrict;
-	if (lexeme.length() >= 3 && (std::isdigit(lexeme[2]) || std::isdigit(lexeme[0])))
-		return true && !veryStrict;
 
-	return std::isdigit(lexeme[0]) && (std::isdigit(lexeme.back()) || !veryStrict);
+	return std::isdigit(lexeme.front()) && (std::isdigit(lexeme.back()) || !veryStrict);
 }
 
 static std::string_view trimLeadingZeros(const std::string& str) {
@@ -81,8 +70,6 @@ static std::string_view trimLeadingZeros(const std::string& str) {
 		return std::string_view(str.c_str() + start - (sep >= start && sep != std::string::npos ? 1 : 0), (str.length() - start));
 	return std::string_view(str);
 }
-
-// Parser::Node::Node(const GeneralLexeme& value) : value{ value } {/*std::cout << "(create " << value << ") "; */ }
 
 void Parser::setBracketOperators(const std::vector<std::pair<Lexeme, Lexeme>>& bracketPairs) {
 	mIsParserReady = false;
@@ -160,20 +147,21 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes
 		else if (result.empty() && numberBuffer.empty() && lexeme == "-" && !foundMinusSign)
 			foundMinusSign = true;
 
-		// gg debug this code
+		// gg debug this code [fucked up counter = 1]
 		else if (!numberBuffer.empty() &&
 			((lexeme == "." && foundDecimalPoint) ||
 				(lexeme == "-" && foundMinusSign) ||
-				(!((!result.empty() &&
-					((mOperatorEvalTypes.contains(result.back()) &&
-						(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
-							mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
-						mBracketsOperators.openBracketsOperators.contains(result.back()))) ||
-					result.empty())) ||
-				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) ||
-				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) ||
-				(std::isdigit(lexeme[0]) && strictedIsNumber(numberBuffer, true)) ||
-				(!std::isdigit(lexeme[0]) && !isNumber(numberBuffer)))) {
+				//(!((!result.empty() &&
+				//	((mOperatorEvalTypes.contains(result.back()) &&
+				//		(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
+				//			mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
+				//		mBracketsOperators.openBracketsOperators.contains(result.back()))) ||
+				//	result.empty())) ||
+				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) || // curr is not a number, buffer is a number
+				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) || // curr is a number, buffer is not a number
+				(std::isdigit(lexeme[0]) && strictedIsNumber(numberBuffer, true)) || // curr is a number, buffer is a "number"
+				(!std::isdigit(lexeme[0]) && !isNumber(numberBuffer)))) { // curr is not a number, buffer is not a number
+		
 			result.push_back(numberBuffer);
 			foundDecimalPoint = false;
 			foundMinusSign = false;
@@ -298,8 +286,9 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 					operatorNodeValue = operatorNodeRawValue.getValue();
 				}
 
-				auto operatorNode = (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion) ?
-					createRawExpressionOperatorTree(operatorNodeValue) :
+				auto operatorNode = (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion ||
+					mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::Storage) ?
+					createRawExpressionOperatorTree(operatorNodeValue, mRawExpressionBracketEvalTypes.at(openBracket)) :
 					NodeFactory::create(operatorNodeValue);
 				EXCEPT_RETURN(operatorNode);
 
@@ -326,13 +315,16 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 				return ParserSyntaxError("bracket closed before one open.");
 			operatorStack.pop(); // error here
 
+			if (resultStack.empty())
+				return ParserSyntaxError("Noting to parsed, value required!");
+
 			// if current expression is argument of lambda function
 			if (NodeFactory::node(resultStack.top()).nodestate == NodeFactory::Node::NodeState::Storage) {
 				auto storageNode = topPopNotEmpty(resultStack);
 				auto lambdaNode = topPopNotEmpty(resultStack);
 
 				if (!lambdaNode.isError() && NodeFactory::node(lambdaNode.getValue()).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-					NodeFactory::node(lambdaNode.getValue()).rightPos = NodeFactory::node(storageNode.getValue()).leftPos;
+					NodeFactory::node(lambdaNode.getValue()).rightPos = storageNode.getValue();
 					resultStack.push(lambdaNode.getValue());
 				}
 				else {
@@ -343,15 +335,13 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 			}
 
 			// if current expression is argument of postfix operator
-			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
-				auto operatorNodeValue = topPopNotEmpty(operatorStack);
-				auto prefixOperandNode = topPopNotEmpty(resultStack);
+			while (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix)
+			{
+				auto operatorNode = NodeFactory::create(topPopNotEmpty(operatorStack).getValue()); // guarantee that operatorNodeValue will always contains a value.
+				auto prefixOperandNodeValue = topPopNotEmpty(resultStack);
+				EXCEPT_RETURN(prefixOperandNodeValue);
 
-				EXCEPT_RETURN(prefixOperandNode);
-				EXCEPT_RETURN(operatorNodeValue);
-
-				auto operatorNode = NodeFactory::create(operatorNodeValue.getValue());
-				NodeFactory::node(operatorNode).rightPos = prefixOperandNode.getValue();
+				NodeFactory::node(operatorNode).rightPos = prefixOperandNodeValue.getValue();
 				resultStack.push(operatorNode);
 			}
 		}
@@ -445,77 +435,77 @@ bool Parser::checkIfValidParameterName(const std::string& parameter) const {
 	return true;
 }
 
-Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression) const
+std::optional<std::runtime_error> Parser::getLambdaType(std::vector<std::pair<std::string, RuntimeType>>& parametersWithTypes, std::string parameterExpression) const {
+	std::regex pattern("(\\w+)(?::(\\w+(?:\\[\\w+(?:,\\w+)?\\])?))?");
+	std::smatch matches;
+
+	while (std::regex_search(parameterExpression, matches, pattern)) {
+		if (matches[2].str().empty()) {
+			if (!checkIfValidParameterName(matches[1].str()))
+				return ParserSyntaxError(
+					std::format(
+						"The parameter name \"{}\" is not valid. Parameter names cannot be operators, numbers, or brackets.",
+						matches[1].str()
+					)
+				);
+
+			parametersWithTypes.emplace_back(matches[1], RuntimeBaseType::Number);
+		}
+
+		else {
+			Result<RuntimeType, std::runtime_error> parsedRuntimeTypedResult{ RuntimeCompoundType::ParseString(matches[2]) };
+
+			if (parsedRuntimeTypedResult.isError())
+				return ParserSyntaxError(
+					parsedRuntimeTypedResult.getException(),
+					std::format(
+						"When attempting to parse the type of a lambda function parameter \"{}\".",
+						matches[3].str()
+					),
+					"Parser::createRawExpressionOperatorTree");
+
+			parametersWithTypes.emplace_back(matches[1], parsedRuntimeTypedResult.moveValue());
+		}
+		parameterExpression = matches.suffix().str();
+	}
+
+	return std::nullopt;
+}
+
+Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType) const
 {
 	std::string_view rawVariablesExpression;
 	std::string_view rawOperationTree(RawExpression);
-	std::vector <std::pair<std::string, RuntimeType>> variableLexemesWithTypes;
-	bool foundParameterSlot{ false };
-	Parser pas(*this);
 
-	std::vector<std::string> rawExpressionLexemes = initializeStaticLexer({",", ";", "Number", "Storage", "Lambda"})(RawExpression);
+	bool foundParameterSlot{ false };
+	Parser pas(*this); // very expensive
+
+	std::vector<std::string> rawExpressionLexemes = initializeStaticLexer(std::vector<std::string>{ ",", ";", "Number", "Storage", "Lambda" })(RawExpression);
+	std::vector<std::pair<std::string, RuntimeType>> variableLexemesWithTypes;
 
 	auto variableSpilterIndexExist{ std::ranges::find(rawExpressionLexemes, ";") };
-	auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') };
 
-	if (variableSpilterIndexExist != rawExpressionLexemes.end() && variableSpilterIndex != RawExpression.end()) {
+	if (auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') };
+		variableSpilterIndexExist != rawExpressionLexemes.end() && variableSpilterIndex != RawExpression.end()) {
 		rawVariablesExpression = std::string_view(RawExpression.begin(), variableSpilterIndex);
 		rawOperationTree = std::string_view(++variableSpilterIndex, RawExpression.end());
 
 		foundParameterSlot = true;
-		for (const auto& splited : splitString(rawVariablesExpression, ',')) {
-			std::vector<std::string_view> variableWithType(splitString(splited, ':'));
-			std::string variableName(variableWithType[0]);
-			RuntimeType variableType = RuntimeBaseType::Number;
+		if (std::optional<std::runtime_error> parameterParsingError{ getLambdaType(variableLexemesWithTypes, std::string(rawVariablesExpression)) }; parameterParsingError.has_value())
+			return parameterParsingError.value();
 
-			if (variableWithType.size() > 2)
-				return ParserSyntaxError(
-					std::format(
-						"The parameter syntax should follow the format <variable name>: <variable type>. but found more than two colons are found at \"{}\".",
-						splited
-					)
-				);
-
-			if (variableWithType.size() == 2) {
-				Result<RuntimeType, std::runtime_error> parsedRuntimeTypeResult{ 
-					RuntimeCompoundType::ParseString(std::string(variableWithType[1])) 
-				};
-
-				if (parsedRuntimeTypeResult.isError())
-					return ParserSyntaxError(
-						parsedRuntimeTypeResult.getException(),
-						"When attempting to parse the type of a lambda function parameter.",
-						"Parser::createRawExpressionOperatorTree");
-
-				variableType = parsedRuntimeTypeResult.getValue();
-			}
-
-
-			if (!checkIfValidParameterName(variableName))
-				return ParserSyntaxError(
-					std::format(
-						"The parameter name \"{}\" is not valid. Parameter names cannot be operators, numbers, or brackets.", 
-						variableName
-					)
-				);
-
-			variableLexemesWithTypes.emplace_back(variableName, variableType);
-			pas.addOperatorEvalType(variableName, OperatorEvalType::Constant);
-			pas.addOperatorLevel(variableName, 9);
+		for (const auto& [variableLexeme, _] : variableLexemesWithTypes) {
+			pas.addOperatorEvalType(variableLexeme, Parser::OperatorEvalType::Constant);
+			pas.addOperatorLevel(variableLexeme, 9);
+			pas.mTempConstant.emplace(variableLexeme);
 		}
-
-		foundParameterSlot = true;
 	}
-	
-	std::vector<std::string> variableLexemes;
-	for (const auto& variableLexemeWithTypes : variableLexemesWithTypes)
-		variableLexemes.emplace_back(variableLexemeWithTypes.first);
 
-	auto operationTree = initializeStaticLexer(variableLexemes)(std::string(rawOperationTree));
+	auto operationTree = initializeStaticLexer(pas.mTempConstant)(std::string(rawOperationTree));
 	auto parsedNumberOperationTree = parseNumbers(operationTree);
-	
+
 	pas._ignore_parserReady();
-	if (foundParameterSlot) {
+	if (RawExpressionType == NodeFactory::Node::NodeState::LambdaFuntion) {
 		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree);
 		EXCEPT_RETURN(fullyParsedOperationTree);
 
@@ -529,17 +519,26 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 		return operatorNode;
 	}
 
-	else {
+	else if (!foundParameterSlot && RawExpressionType == NodeFactory::Node::NodeState::Storage) {
 		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree, true);
 		EXCEPT_RETURN(fullyParsedOperationTree);
 
 		auto fullyParsedOperationTreeValue{ fullyParsedOperationTree.getValue() };
 
-		auto operatorNode = NodeFactory::create(std::format("storage-{:x}", randomNumber()));
+		auto operatorNode = createRawExpressionStorage(std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue));
+		NodeFactory::node(operatorNode).value = std::format("storage-{:x}", randomNumber());
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Storage;
-		NodeFactory::node(operatorNode).leftPos = createRawExpressionStorage(std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue));
+
 		return operatorNode;
 	}
+
+	return ParserSyntaxError(
+		std::format(
+			R"(The "Storage" class cannot contain a parameter slot named "{}" as it is not valid.)",
+			RawExpression
+		),
+		"Parser::createRawExpressionOperatorTree"
+	);
 }
 
 std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level) const {
@@ -560,14 +559,13 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level)
 
 	// if a lambda function
 	if (treeNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-		const std::vector <std::pair<std::string, RuntimeType>> &parameters = treeNode.utilityStorage;
+		const std::vector <std::pair<std::string, RuntimeType>>& parameters = treeNode.utilityStorage;
 		std::vector<std::string> arguments;
 
 		// get argument values
 		NodeFactory::NodePos currArgNodePos = treeNode.rightPos;
 		while (NodeFactory::validNode(currArgNodePos)) {
-			std::string result = printOpertatorTree(NodeFactory::node(currArgNodePos).leftPos);
-			arguments.push_back(result);
+			arguments.emplace_back(printOpertatorTree(NodeFactory::node(currArgNodePos).leftPos));
 			currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
 		}
 
@@ -585,14 +583,13 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level)
 	if (treeNode.nodestate == NodeFactory::Node::NodeState::Storage) {
 		result << NodeFactory::node(tree).value << "[";
 
-		if (NodeFactory::validNode(treeNode.leftPos)) {
-			NodeFactory::NodePos curr = treeNode.leftPos;
-			while (NodeFactory::validNode(curr)) {
-				result << "(" << printOpertatorTree(NodeFactory::node(curr).leftPos, _level + 1) << "), ";
-				curr = NodeFactory::node(curr).rightPos;
-			}
-			result.seekp(-2, std::ios_base::end);
+		NodeFactory::NodePos curr = tree;
+		while (NodeFactory::validNode(curr)) {
+			result << "(" << printOpertatorTree(NodeFactory::node(curr).leftPos, _level + 1) << "), ";
+			curr = NodeFactory::node(curr).rightPos;
 		}
+		result.seekp(-2, std::ios_base::end);
+		
 
 		result << "]";
 		return result.str();

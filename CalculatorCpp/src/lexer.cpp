@@ -3,6 +3,7 @@
 #include <vector>
 #include <iterator>
 #include <cctype>
+#include <stack>
 
 #define DEBUG
 #include "debug.cpp"
@@ -67,10 +68,10 @@ bool handleRawString(
 	std::string& rawStringBracketBuff,
 	TrieTree::StartsWithsInstance& startWithInst,
 	TrieTree::StartsWithsInstance& startWithRawStringInst,
-	size_t& isCurrentRawString,
+	std::stack<std::string>& isCurrentRawString,
 	const Brackets& rawStringBracket) {
-	if (!buff.empty() && !isCurrentRawString) {
-		isCurrentRawString++;
+	if (!buff.empty() && isCurrentRawString.empty()) {
+		isCurrentRawString.emplace(temp.back());
 		startWithRawStringInst.reset();
 		startWithInst.reset();
 
@@ -89,7 +90,8 @@ bool handleRawString(
 		rawStringBracket.openBracketsOperators.contains(temp.back()) &&
 		rawStringBracket.openBracketsOperators.at(temp.back()) == rawStringBracketBuff)
 	{
-		if (!(--isCurrentRawString)) {
+		isCurrentRawString.pop();
+		if (isCurrentRawString.empty()) {
 			nonEmptyPushback(temp, buff);
 			nonEmptyPushback(temp, rawStringBracketBuff);
 			buff.clear();
@@ -112,7 +114,11 @@ bool handleRawString(
 	else
 	{
 		if (rawStringBracket.openBracketsOperators.contains(rawStringBracketBuff))
-			isCurrentRawString++;
+			isCurrentRawString.emplace(rawStringBracketBuff);
+
+		if (!isCurrentRawString.empty() && rawStringBracket.closeBracketsOperators.contains(rawStringBracketBuff) &&
+			rawStringBracket.closeBracketsOperators.at(rawStringBracketBuff) == isCurrentRawString.top())
+			isCurrentRawString.pop();
 
 		buff += rawStringBracketBuff;
 
@@ -136,7 +142,7 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 	TrieTree::StartsWithsInstance startWithInst(mKeywordTree);
 	TrieTree::StartsWithsInstance startWithRawStringInst(mRawStringBracketTree);
 
-	size_t isCurrentRawString{ 0 };
+	std::stack<std::string> isCurrentRawString;
 
 	buff.reserve(50);
 	temp.reserve(50);
@@ -150,7 +156,7 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 
 	for (char chr : currContent) {
 		if ((!temp.empty() &&
-			(mRawStringBracket.openBracketsOperators.contains(temp.back()) || isCurrentRawString)) &&
+			(mRawStringBracket.openBracketsOperators.contains(temp.back()) || !isCurrentRawString.empty())) &&
 			handleRawString(chr, temp, buff, rawStringBracketBuff, startWithInst, startWithRawStringInst, isCurrentRawString, mRawStringBracket))
 			continue;
 
@@ -177,12 +183,12 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 		buff += chr;
 	}
 
-	if (isCurrentRawString && mRawStringBracket.closeBracketsOperators.contains(rawStringBracketBuff))
+	if (!isCurrentRawString.empty() && mRawStringBracket.closeBracketsOperators.contains(rawStringBracketBuff))
 	{
 		nonEmptyPushback(temp, buff);
 		nonEmptyPushback(temp, rawStringBracketBuff);
 	}
-	else if (isCurrentRawString)
+	else if (!isCurrentRawString.empty())
 		nonEmptyPushback(temp, buff + rawStringBracketBuff);
 
 	else if (buff.length() && (mKeywordTree.search(buff) || (buff.length() && std::isdigit(buff.at(0)))))
@@ -204,7 +210,7 @@ std::vector<std::string> Lexer::lexing(
 	TrieTree::StartsWithsInstance startWithInst(keywordTree);
 	TrieTree::StartsWithsInstance startWithRawStringInst(rawStringBracketTree);
 
-	size_t isCurrentRawString{ 0 };
+	std::stack<std::string> isCurrentRawString;
 
 	buff.reserve(50);
 	temp.reserve(50);
@@ -218,7 +224,7 @@ std::vector<std::string> Lexer::lexing(
 
 	for (char chr : currContent) {
 		if ((!temp.empty() &&
-			(rawStringBracket.openBracketsOperators.contains(temp.back()) || isCurrentRawString)) &&
+			(rawStringBracket.openBracketsOperators.contains(temp.back()) || !isCurrentRawString.empty())) &&
 			handleRawString(chr, temp, buff, rawStringBracketBuff, startWithInst, startWithRawStringInst, isCurrentRawString, rawStringBracket))
 			continue;
 
@@ -244,12 +250,12 @@ std::vector<std::string> Lexer::lexing(
 		buff += chr;
 	}
 
-	if (isCurrentRawString && rawStringBracket.closeBracketsOperators.contains(rawStringBracketBuff))
+	if (!isCurrentRawString.empty() && rawStringBracket.closeBracketsOperators.contains(rawStringBracketBuff))
 	{
 		nonEmptyPushback(temp, buff);
 		nonEmptyPushback(temp, rawStringBracketBuff);
 	}
-	else if (isCurrentRawString)
+	else if (!isCurrentRawString.empty())
 		nonEmptyPushback(temp, buff + rawStringBracketBuff);
 
 	else if (buff.length() && (keywordTree.search(buff) || (buff.length() && std::isdigit(buff.at(0)))))

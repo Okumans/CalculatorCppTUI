@@ -30,7 +30,7 @@ public:
     Result(const E& exception) : mValueOrException(exception) {}
     Result(E&& exception) : mValueOrException(std::move(exception)) {}
     Result(const Result& other) : mValueOrException(other.mValueOrException) {}
-    Result(Result&& other) : mValueOrException(std::move(other.mValueOrException)) {}
+    Result(Result&& other) noexcept : mValueOrException(std::move(other.mValueOrException)) {}
 
     bool isError() const {
         return std::holds_alternative<E>(mValueOrException);
@@ -50,5 +50,9 @@ public:
 
     T&& getValue_or(T&& orValue) const {
         return isError() ? std::move(orValue) : std::get<T>(mValueOrException);
+    }
+
+    T moveValue() {
+        return std::get<T>(std::move(mValueOrException));
     }
 };
