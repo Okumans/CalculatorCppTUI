@@ -273,17 +273,20 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 
 			if (mRawExpressionBracketEvalTypes.contains(openBracket)) {
 				Lexeme operatorNodeValue;
-				if (const auto prevIt{ *std::prev(it) }; strictedIsNumber(prevIt) || (mOperatorEvalTypes.contains(prevIt) && mOperatorEvalTypes.at(prevIt) == OperatorEvalType::Constant))
-				{
+				if (const auto prevIt{ *std::prev(it) }; strictedIsNumber(prevIt) || (mOperatorEvalTypes.contains(prevIt) && mOperatorEvalTypes.at(prevIt) == OperatorEvalType::Constant)) {
 					auto operatorNodeRawValue = topPopNotEmpty(resultStack);
 					EXCEPT_RETURN(operatorNodeRawValue);
 					operatorNodeValue = NodeFactory::node(operatorNodeRawValue.getValue()).value;
 				}
-				else
-				{
+				else {
 					auto operatorNodeRawValue = topPopNotEmpty(operatorStack);
 					EXCEPT_RETURN(operatorNodeRawValue);
 					operatorNodeValue = operatorNodeRawValue.getValue();
+					
+					if (operatorNodeValue == openBracket) { // empty bracket case
+						operatorNodeValue = "";
+						operatorStack.emplace(openBracket);
+					}
 				}
 
 				auto operatorNode = (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion ||
@@ -316,7 +319,7 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 			operatorStack.pop(); // error here
 
 			if (resultStack.empty())
-				return ParserSyntaxError("Noting to parsed, value required!");
+				return std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>(NodeFactory::NodePosNull); // return null
 
 			// if current expression is argument of lambda function
 			if (NodeFactory::node(resultStack.top()).nodestate == NodeFactory::Node::NodeState::Storage) {
@@ -390,8 +393,11 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 		resultStack.push(operatorNode);
 	}
 
+	if (resultStack.empty() && returnVector)
+		return std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>(std::vector<NodeFactory::NodePos>{}); // return null
+	
 	if (resultStack.empty())
-		return ParserSyntaxError("Noting to parsed, value required!");
+		return std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>(NodeFactory::NodePosNull); // return null
 
 	if (returnVector)
 	{
@@ -520,12 +526,19 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 	}
 
 	else if (!foundParameterSlot && RawExpressionType == NodeFactory::Node::NodeState::Storage) {
-		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree, true);
-		EXCEPT_RETURN(fullyParsedOperationTree);
+		NodeFactory::NodePos operatorNode;
 
-		auto fullyParsedOperationTreeValue{ fullyParsedOperationTree.getValue() };
+		if (RawExpression == "")
+			operatorNode = NodeFactory::create();
 
-		auto operatorNode = createRawExpressionStorage(std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue));
+		else {
+			auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree, true);
+			EXCEPT_RETURN(fullyParsedOperationTree);
+
+			auto fullyParsedOperationTreeValue{ fullyParsedOperationTree.getValue() };
+			operatorNode = createRawExpressionStorage(std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue));
+		}
+		
 		NodeFactory::node(operatorNode).value = std::format("storage-{:x}", randomNumber());
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Storage;
 

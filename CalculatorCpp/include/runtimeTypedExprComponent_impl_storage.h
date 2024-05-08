@@ -104,6 +104,10 @@ inline Storage Storage::fromVector(StorageArguments&& storageData) {
 	return Storage(RuntimeCompoundType::Storage(std::move(storageDataTypes)), std::move(storageData));
 }
 
+inline Storage Storage::NullStorage() {
+	return Storage(RuntimeCompoundType::Storage({}), {});
+}
+
 template <RuntimeTypedExprComponentRequired ...Args>
 inline Storage Storage::fromArgs(Args &&...storageData) {
 	constexpr size_t count = sizeof...(storageData);
@@ -197,6 +201,10 @@ inline NodeFactory::NodePos Storage::generateExpressionTree(const StorageArgumen
 	NodePos tail = root;
 
 	NodeFactory::node(root).nodestate = NodeFactory::Node::NodeState::Storage;
+
+	if (storageData.empty())
+		return root;
+
 	NodeFactory::node(tail).leftPos = storageData.front().toNodeExpression();
 
 	for (size_t i{ 1 }; i < storageData.size(); i++)

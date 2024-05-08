@@ -167,6 +167,7 @@ public:
 	Storage& operator=(const Storage& other);
 	Storage& operator=(Storage&& other) noexcept;
 
+	static Storage NullStorage();
 	static Storage fromVector(const StorageArguments& storageData);
 	static Storage fromVector(StorageArguments&& storageData);
 	template <RuntimeTypedExprComponentRequired ...Args>

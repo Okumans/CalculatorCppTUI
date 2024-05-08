@@ -376,6 +376,9 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			if (currNode->value == ".")
 				resultMap[currNodePos] = 0;
 
+			else if (currNode->nodestate == NodeFactory::Node::NodeState::Storage)
+				resultMap[currNodePos] = Storage::NullStorage();
+
 			else if (EvaluatorLambdaFunctions.contains(currNode->value) &&
 				EvaluatorLambdaFunctions.at(currNode->value).getNotation() == Lambda::LambdaNotation::Constant) {
 				Lambda constOperator{ EvaluatorLambdaFunctions.at(currNode->value) };
