@@ -57,7 +57,7 @@ public:
 
 	// main functions
 	std::vector<Lexeme> parseNumbers(const std::vector<Lexeme>& lexemes) const;
-	Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, bool returnVector = false) const;
+	Result<std::vector<NodeFactory::NodePos>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes) const;
 	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType) const;
 	NodeFactory::NodePos createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const;
 	

@@ -64,7 +64,7 @@ void test(size_t basicOperationAmount) {
 
 		if (!root.isError()) {
 			auto rootResult = root.moveValue();
-			auto rootVal = std::get<NodeFactory::NodePos>(rootResult);
+			auto rootVal = rootResult.back();
 
 			if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
 				std::cout << "Result: " << std::fixed << result.getValue() << ", ";
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
 
 			if (!root.isError()) {
 				auto rootResult = root.getValue();
-				auto rootVal = std::get<NodeFactory::NodePos>(rootResult);
+				auto rootVal = rootResult.back();
 				std::cout << "Operation Tree: " << pas.printOpertatorTree(rootVal) << "\n";
 
 				if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
