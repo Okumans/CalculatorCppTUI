@@ -50,21 +50,21 @@ inline void Evaluate::addOperatorFunction(Lambda&& operatorDefinition) {
 }
 
 
-inline Result<RuntimeTypedExprComponent> Evaluate::evaluateExpressionTree(NodeFactory::NodePos root) const {
+inline Result<RuntimeTypedExprComponent> Evaluate::evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots) const {
 
-	Result<RuntimeTypedExprComponent, std::runtime_error> evaluationResult{ Lambda::_NodeExpressionEvaluate(root, *mOperatorFunctions) };
+	Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> evaluationResult{ Lambda::_NodeExpressionsEvaluator(roots, *mOperatorFunctions) };
 	
 	if (evaluationResult.isError())
 		return EvaluationFailedError(
 			evaluationResult.getException(),
 			std::format(
 				"When trying to evaluate Expression tree. (nodeExpression value = {})",
-				root
+				roots[0]
 			),
 			"Evaluate::evaluateExpressionTree"
 		);
 	
-	return evaluationResult.getValue();
+	return evaluationResult.getValue().back();
 }
 
 #endif // EVALUATION_IMPL_H

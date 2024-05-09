@@ -48,7 +48,7 @@ public:
 	Evaluate(const Parser& parser, const Evaluate& other);
 	void addOperatorFunction(const Lambda& operatorDefinition);
 	void addOperatorFunction(Lambda&& operatorDefinition);
-	Result<RuntimeTypedExprComponent> evaluateExpressionTree(NodeFactory::NodePos root) const;
+	Result<RuntimeTypedExprComponent> evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots) const;
 
 //private:
 	//Result<RuntimeTypedExprComponent> evaluatePrefix(const Parser::Lexeme& opr, Number left) const;

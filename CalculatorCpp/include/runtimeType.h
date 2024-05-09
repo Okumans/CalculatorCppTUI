@@ -20,11 +20,11 @@ public:
         : std::runtime_error("RuntimeTypeError: " + message) {}
 
     // Constructor with message and origin information
-    explicit RuntimeTypeError(const std::string& message, const std::string from)
+    explicit RuntimeTypeError(const std::string& message, const std::string& from)
         : std::runtime_error("RuntimeTypeError: " + message + " (from: " + from + ")") {}
 
     // Constructor with chained error, message, and origin information
-    explicit RuntimeTypeError(const std::runtime_error& baseError, const std::string& message, const std::string from)
+    explicit RuntimeTypeError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
         : std::runtime_error("RuntimeTypeError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
 };
 

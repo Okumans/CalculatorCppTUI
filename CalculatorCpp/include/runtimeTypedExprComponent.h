@@ -153,6 +153,7 @@ private:
 	Lambda(const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
 	NodePos generateExpressionTree(const std::string& functionSignature) const;
 	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
+	static Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> _NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 
 	friend class Storage;
 	friend class Evaluate;
@@ -175,6 +176,7 @@ public:
 	static Result<Storage, std::runtime_error> fromVector(const RuntimeCompoundType& storageType, const StorageArguments& storageData);
 	static Result<Storage, std::runtime_error> fromExpressionNode(NodePos storageRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 	const RuntimeTypedExprComponent& operator[](size_t index) const;
+	const std::vector<RuntimeTypedExprComponent>& getData() const;
 	size_t size() const;
 	std::string toString() const;
 

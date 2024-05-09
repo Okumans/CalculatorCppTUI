@@ -20,7 +20,8 @@ public:
 			Number,
 			LambdaFuntion,
 			Storage,
-			Operator
+			Operator,
+			Constant
 		};
 
 		std::string value;

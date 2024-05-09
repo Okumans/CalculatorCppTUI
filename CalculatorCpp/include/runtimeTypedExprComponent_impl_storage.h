@@ -139,14 +139,20 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 	Result<RuntimeType, std::runtime_error> storageTypeRaw = getReturnType(storageRootNode, EvaluatorLambdaFunctions);
 	EXCEPT_RETURN(storageTypeRaw);
 
-	StorageArguments arguments;
+	if (storageTypeRaw.getValue() == RuntimeBaseType::_Storage)
+		return Storage::NullStorage();
+
+	std::vector<NodeFactory::NodePos> argumentNodeExpressions;
 	NodeFactory::NodePos currArgNodePos = storageRootNode;
 	while (NodeFactory::validNode(currArgNodePos)) {
-		NodeFactory::Node::NodeState currNodeState = NodeFactory::node(currArgNodePos).leftNode().nodestate;
-		NodePos currArgNodeLeftPos = NodeFactory::node(currArgNodePos).leftPos;
-		switch (currNodeState)
-		{
-		case NodeFactory::Node::NodeState::LambdaFuntion:
+		argumentNodeExpressions.emplace_back(NodeFactory::node(currArgNodePos).leftPos);
+		//NodeFactory::Node test = NodeFactory::node(currArgNodePos).leftNode();
+		//NodeFactory::Node::NodeState currNodeState = NodeFactory::node(currArgNodePos).leftNode().nodestate;
+		//NodePos currArgNodeLeftPos = NodeFactory::node(currArgNodePos).leftPos;
+		
+		//switch (currNodeState)
+		//{			
+		/*case NodeFactory::Node::NodeState::LambdaFuntion:
 		{
 			Result result = Lambda::fromExpressionNode(currArgNodeLeftPos, EvaluatorLambdaFunctions);
 			EXCEPT_RETURN(result);
@@ -158,6 +164,15 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 			Result result = Lambda::fromExpressionNode(currArgNodeLeftPos, EvaluatorLambdaFunctions);
 			EXCEPT_RETURN(result);
 			arguments.emplace_back(result.getValue());
+			break;
+		}
+		case NodeFactory::Node::NodeState::Constant:
+		{
+			Result result = Lambda::fromExpressionNode(currArgNodeLeftPos, EvaluatorLambdaFunctions);
+			EXCEPT_RETURN(result);
+			Result evaluateResult{ result.getValue().evaluate(EvaluatorLambdaFunctions) };
+			EXCEPT_RETURN(evaluateResult);
+			arguments.emplace_back(evaluateResult.getValue());
 			break;
 		}
 		case NodeFactory::Node::NodeState::Number:
@@ -173,14 +188,23 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 			arguments.emplace_back(result.getValue());
 			break;
 		}
-		}
+		}*/
 		currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
 	}
 
-	if (!arguments.size())
-		return std::runtime_error("Cannot evalutate noting.");
+	Result<StorageArguments, std::runtime_error> argumentsResult{ Lambda::_NodeExpressionsEvaluator(argumentNodeExpressions, EvaluatorLambdaFunctions) };
 
-	return Storage(std::get<RuntimeCompoundType>(storageTypeRaw.getValue()), arguments);
+	if (argumentsResult.isError())
+		return StorageEvaluationError(
+			argumentsResult.getException(),
+			"When trying to evalute arguments of Storage",
+			"Storage::fromExpressionNode"
+		);
+
+	if (!argumentsResult.getValue().size())
+		return NullStorage();
+
+	return Storage(std::get<RuntimeCompoundType>(storageTypeRaw.getValue()), argumentsResult.moveValue());
 }
 
 /**
@@ -190,6 +214,10 @@ inline const RuntimeTypedExprComponent& Storage::operator[](size_t index) const 
 	if (index >= mStroageData.size())
 		throw std::runtime_error(std::format("Cannot access out of range index \"{}\". (from Storage::operator[])", index));
 	return mStroageData[index];
+}
+
+inline const std::vector<RuntimeTypedExprComponent>& Storage::getData() const {
+	return mStroageData;
 }
 
 inline size_t Storage::size() const {

@@ -209,6 +209,9 @@ inline bool _fastCheckRuntimeTypeArgumentsType(const RuntimeType& baseType, cons
 inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, bool useCache) {
     static std::unordered_map<NodeFactory::NodePos, RuntimeType> nodeTypeCache;
 
+    if (!useCache)
+        nodeTypeCache.clear();
+
     if (useCache && nodeTypeCache.contains(rootExpressionNode))
         return nodeTypeCache[rootExpressionNode];
 
@@ -236,53 +239,28 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
                 EvaluatorLambdaFunctions.at(currNode.value).getNotation() == Lambda::LambdaNotation::Constant) {
                 resultMap[currNodePos] = *EvaluatorLambdaFunctions.at(currNode.value).getLambdaInfo().ReturnType;
             }
+
+            else if (currNode.nodestate == NodeFactory::Node::NodeState::Storage)
+                resultMap[currNodePos] = RuntimeBaseType::_Storage; // null storage
+
             else
                 resultMap[currNodePos] = RuntimeBaseType::Number;
         }
 
         else if (currNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
             std::vector<std::pair<std::string, RuntimeType>> parameters{ currNode.utilityStorage };
-            std::vector<RuntimeType> arguments;
-
-            NodeFactory::NodePos currArgNodePos{ currNode.rightPos };
-            while (NodeFactory::validNode(currArgNodePos)) {
-                Result<RuntimeType, std::runtime_error> result{ getReturnType(NodeFactory::node(currArgNodePos).leftPos, EvaluatorLambdaFunctions) };
-
-                // Handle error occur from determining argument type 
-                if (result.isError())
-                    return RuntimeTypeError(
-                        result.getException(),
-                        std::format(
-                            "While determining argument type of \"{}\"",
-                            NodeFactory::validNode(NodeFactory::node(currArgNodePos).leftPos)
-                            ? NodeFactory::node(currArgNodePos).leftNode().value
-                            : "Null"
-                        ),
-                        "getReturnType"
-                    );
-
-                arguments.push_back(result.getValue());
-                currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
-            }
-
-            if (arguments.size() && parameters.size() && arguments.size() != parameters.size())
-                return RuntimeTypeError(std::format("parameters size must be equal to argument size! ({}!={})", parameters.size(), arguments.size()), "getReturnType");
-
-            std::unordered_map<std::string, Lambda> tempEvaluatorLambdaFunctions(EvaluatorLambdaFunctions);
+            std::vector<RuntimeType> returnTypes;
             std::vector<RuntimeType> lambdaParameterType;
             lambdaParameterType.reserve(parameters.size());
 
+            std::unordered_map<std::string, Lambda> tempEvaluatorLambdaFunctions(EvaluatorLambdaFunctions);
+
             // depend on arguments size in this case the argument size should be either same as parameter or 0.
             for (size_t ind{ 0 }; ind < parameters.size(); ind++) {
-                RuntimeType& parameterType{ parameters[ind].second };
-                
-                if (arguments.size() && parameterType != arguments[ind])
-                    return RuntimeTypeError(std::format("parameters type must be same as argument type! ({}!={})", parameterType, arguments[ind]), "getReturnType");
-
                 Result<Lambda, std::runtime_error> tempFunc{ Lambda::fromFunction(
                     parameters[ind].first,
                     RuntimeCompoundType::Lambda(
-                        parameterType,
+                        parameters[ind].second,
                         RuntimeBaseType::_Storage
                     ),
                     Lambda::LambdaNotation::Constant,
@@ -305,28 +283,102 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
                 lambdaParameterType.emplace_back(parameters[ind].second);
             }
 
-            Result<RuntimeType, std::runtime_error> leftVal{ getReturnType(currNode.leftPos, tempEvaluatorLambdaFunctions) };
+            NodeFactory::NodePos currArgNodePos{ currNodePos };
+            while (NodeFactory::validNode(currArgNodePos)) {
+                Result<RuntimeType, std::runtime_error> result{ getReturnType(NodeFactory::node(currArgNodePos).leftPos, tempEvaluatorLambdaFunctions) };
 
-            if (leftVal.isError())
-                return RuntimeTypeError(
-                    leftVal.getException(),
-                    std::format("While determining argument type of \"{}\"",
-                        NodeFactory::validNode(currNode.leftPos)
-                        ? NodeFactory::node(currNode.leftPos).value
-                        : "Null"),
-                    "getReturnType");
+                // Handle error occur from determining argument type 
+                if (result.isError())
+                    return RuntimeTypeError(
+                        result.getException(),
+                        std::format(
+                            "While determining argument type of \"{}\"",
+                            NodeFactory::validNode(NodeFactory::node(currArgNodePos).leftPos)
+                            ? NodeFactory::node(currArgNodePos).leftNode().value
+                            : "Null"
+                        ),
+                        "getReturnType"
+                    );
 
-            if (arguments.empty() && parameters.size()) { // didn't call function
-                if (lambdaParameterType.empty())
-                    resultMap[currNodePos] = RuntimeCompoundType::Lambda(leftVal.moveValue(), RuntimeBaseType::_Storage);
-                else if (lambdaParameterType.size() == 1)
-                    resultMap[currNodePos] = RuntimeCompoundType::Lambda(leftVal.moveValue(), std::move(lambdaParameterType.front()));
-                else
-                    resultMap[currNodePos] = RuntimeCompoundType::Lambda(leftVal.moveValue(), RuntimeCompoundType::Storage(std::move(lambdaParameterType)));
+                if (returnTypes.size() && 
+                    std::holds_alternative<RuntimeCompoundType>(result.getValue()) && std::get<RuntimeCompoundType>(result.getValue()).Type == RuntimeBaseType::_Lambda &&
+                    std::holds_alternative<RuntimeCompoundType>(returnTypes.back()) && std::get<RuntimeCompoundType>(returnTypes.back()).Type == RuntimeBaseType::_Storage) {
+                    returnTypes.pop_back();
+                    
+                    if (*(RuntimeCompoundType::getLambdaInfo(std::get<RuntimeCompoundType>(returnTypes.back())).ParamsType) != result.getValue()) 
+                        return RuntimeTypeError(
+                            std::format(
+                                "parameters type must be same as argument type! ({}!={})",
+                                *(RuntimeCompoundType::getLambdaInfo(std::get<RuntimeCompoundType>(returnTypes.back())).ParamsType),
+                                result.getValue()), 
+                            "getReturnType"
+                        );
+                    
+                    returnTypes.emplace_back(*(RuntimeCompoundType::getLambdaInfo(std::get<RuntimeCompoundType>(returnTypes.back())).ReturnType));
+                }
+
+                returnTypes.emplace_back(result.getValue());
+                currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
             }
 
+            //if (arguments.size() && parameters.size() && arguments.size() != parameters.size())
+            //    return RuntimeTypeError(std::format("parameters size must be equal to argument size! ({}!={})", parameters.size(), arguments.size()), "getReturnType");
+
+            //std::unordered_map<std::string, Lambda> tempEvaluatorLambdaFunctions(EvaluatorLambdaFunctions);
+            //std::vector<RuntimeType> lambdaParameterType;
+            //lambdaParameterType.reserve(parameters.size());
+
+            //// depend on arguments size in this case the argument size should be either same as parameter or 0.
+            //for (size_t ind{ 0 }; ind < parameters.size(); ind++) {
+            //    RuntimeType& parameterType{ parameters[ind].second };
+            //    
+            //    if (arguments.size() && parameterType != arguments[ind])
+            //        return RuntimeTypeError(std::format("parameters type must be same as argument type! ({}!={})", parameterType, arguments[ind]), "getReturnType");
+
+            //    Result<Lambda, std::runtime_error> tempFunc{ Lambda::fromFunction(
+            //        parameters[ind].first,
+            //        RuntimeCompoundType::Lambda(
+            //            parameterType,
+            //            RuntimeBaseType::_Storage
+            //        ),
+            //        Lambda::LambdaNotation::Constant,
+            //        [](const Lambda::LambdaArguments&) {
+            //            return NodeFactory::NodePosNull;
+            //        }
+            //    ) };
+
+            //    if (tempFunc.isError())
+            //        return LambdaConstructionError(
+            //            tempFunc.getException(),
+            //            std::format(
+            //                "When attempting to create a constant lambda function \"{}\", which is used to assist in defining the return type",
+            //                parameters[ind].first
+            //            ),
+            //            "getReturnType"
+            //        );
+
+            //    tempEvaluatorLambdaFunctions.try_emplace(parameters[ind].first, tempFunc.moveValue());
+            //    lambdaParameterType.emplace_back(parameters[ind].second);
+            //}
+
+            //Result<RuntimeType, std::runtime_error> leftVal{ getReturnType(currNode.leftPos, tempEvaluatorLambdaFunctions) };
+
+            //if (leftVal.isError())
+            //    return RuntimeTypeError(
+            //        leftVal.getException(),
+            //        std::format("While determining argument type of \"{}\"",
+            //            NodeFactory::validNode(currNode.leftPos)
+            //            ? NodeFactory::node(currNode.leftPos).value
+            //            : "Null"),
+            //        "getReturnType");
+
+            if (lambdaParameterType.empty())
+                resultMap[currNodePos] = RuntimeCompoundType::Lambda(std::move(returnTypes.back()), RuntimeBaseType::_Storage);
+            else if (lambdaParameterType.size() == 1)
+                resultMap[currNodePos] = RuntimeCompoundType::Lambda(std::move(returnTypes.back()), std::move(lambdaParameterType.front()));
             else
-                resultMap[currNodePos] = leftVal.moveValue();
+                resultMap[currNodePos] = RuntimeCompoundType::Lambda(std::move(returnTypes.back()), RuntimeCompoundType::Storage(std::move(lambdaParameterType)));
+        
         }
 
         else if (currNode.nodestate == NodeFactory::Node::NodeState::Storage) {

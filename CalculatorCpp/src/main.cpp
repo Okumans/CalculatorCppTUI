@@ -64,7 +64,7 @@ void test(size_t basicOperationAmount) {
 
 		if (!root.isError()) {
 			auto rootResult = root.moveValue();
-			auto rootVal = rootResult.back();
+			auto rootVal = rootResult;
 
 			if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
 				std::cout << "Result: " << std::fixed << result.getValue() << ", ";
@@ -83,8 +83,8 @@ void test(size_t basicOperationAmount) {
 
 int main(int argc, char* argv[])
 {
-	// test(16'000'000);
-	// return 0;
+	 //test(1'000'000); // 4.87 second
+	 //return 0;
 
 	Lexer lex;
 	initializeLexer(lex);
@@ -128,13 +128,15 @@ int main(int argc, char* argv[])
 
 		std::cout << "Parsing Number: " << ss.str().substr(0, 1000) << "\n";
 
+		getReturnType(NodeFactory::NodePosNull, {}, false); // reset cache
+
 		if (!pas.parserReady().has_value()) {
 			auto root = pas.createOperatorTree(parsedResult);
 
 			if (!root.isError()) {
 				auto rootResult = root.getValue();
-				auto rootVal = rootResult.back();
-				std::cout << "Operation Tree: " << pas.printOpertatorTree(rootVal) << "\n";
+				const auto &rootVal = rootResult;
+				// std::cout << "Operation Tree: " << pas.printOpertatorTree(rootVal) << "\n";
 
 				if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
 					std::cout << "Result: " << std::fixed << result.getValue() << "\n";
