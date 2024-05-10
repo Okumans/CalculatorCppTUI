@@ -21,7 +21,6 @@ public:
 			LambdaFuntion,
 			Storage,
 			Operator,
-			Constant
 		};
 
 		std::string value;

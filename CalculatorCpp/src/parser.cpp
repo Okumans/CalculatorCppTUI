@@ -234,7 +234,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 			NodeFactory::NodePos temp{ NodeFactory::create(parsedLexeme) };
 			if (checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant))
-				NodeFactory::node(temp).nodestate = NodeFactory::Node::NodeState::Constant;
+				NodeFactory::node(temp).nodestate = NodeFactory::Node::NodeState::Operator;
 
 			resultStack.push(temp);
 
@@ -393,7 +393,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 				resultStack.push(NodeFactory::create(parsedLexeme));
 			else if (checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant)) {
 				NodeFactory::NodePos temp{ NodeFactory::create(parsedLexeme) };
-				NodeFactory::node(temp).nodestate = NodeFactory::Node::NodeState::Constant;
+				NodeFactory::node(temp).nodestate = NodeFactory::Node::NodeState::Operator;
 				resultStack.push(temp);
 			}
 			else

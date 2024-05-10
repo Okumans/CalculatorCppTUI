@@ -168,8 +168,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 		);
 	}
 
-	else if (NodeFactory::node(lambdaFunctionRootNode).nodestate == NodeFactory::Node::NodeState::Operator || 
-		NodeFactory::node(lambdaFunctionRootNode).nodestate == NodeFactory::Node::NodeState::Constant) {
+	else if (NodeFactory::node(lambdaFunctionRootNode).nodestate == NodeFactory::Node::NodeState::Operator) {
 		if (EvaluatorLambdaFunctions.contains(NodeFactory::node(lambdaFunctionRootNode).value))
 			return EvaluatorLambdaFunctions.at(NodeFactory::node(lambdaFunctionRootNode).value);
 
@@ -179,7 +178,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 			"Lambda::fromExpressionNode");
 	}
 	return LambdaConstructionError(
-		std::format(R"(NodeExpression NodeState should be LambdaFunction("1"), Operator("3") or Constant("4") not "{}" (as a number))",
+		std::format(R"(NodeExpression NodeState should be LambdaFunction("1") or Operator("3") not "{}" (as a number))",
 			static_cast<int>(NodeFactory::node(lambdaFunctionRootNode).nodestate)),
 		"Lambda::fromExpressionNode");
 }

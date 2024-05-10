@@ -83,7 +83,7 @@ void test(size_t basicOperationAmount) {
 
 int main(int argc, char* argv[])
 {
-	 //test(1'000'000); // 4.87 second
+	 //test(1'000'000); // 4.11 second
 	 //return 0;
 
 	Lexer lex;
