@@ -3,6 +3,10 @@
 #include <vector>
 #include <string>
 #include <limits>
+#include <tuple>
+#include <cstdint>
+
+#include "runtimeType.h"
 
 class NodeFactory {
 public:
@@ -13,14 +17,15 @@ public:
 	{
 	public:
 		enum class NodeState : int8_t {
-			None,
+			Number,
 			LambdaFuntion,
-			Storage
+			Storage,
+			Operator,
 		};
 
 		std::string value;
-		NodeState nodestate{ NodeState::None };
-		std::vector<std::string> utilityStorage;
+		NodeState nodestate{ NodeState::Number };
+		std::vector<std::pair<std::string, RuntimeType>> utilityStorage;
 
 		NodePos leftPos{ std::numeric_limits<NodePos>::max() };
 		NodePos rightPos{ std::numeric_limits<NodePos>::max() };
@@ -42,6 +47,7 @@ public:
 	static NodePos create(const std::string& value = "");
 	static void freeAll();
 	static bool validNode(NodePos index);
+	static void reserve(size_t amount);
 
 private:
 	Node& iNode(NodePos index);

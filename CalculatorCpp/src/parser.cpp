@@ -11,10 +11,13 @@
 #include <chrono>
 #include <random>
 #include <format>
+#include <regex>
 
 #include "parser.h"
 #include "result.h"
 #include "lexer.h"
+#include "runtimeType.h"
+#include "runtimeTypedExprComponent.h"
 
 #define DEBUG
 #include "debug.cpp"
@@ -24,26 +27,6 @@
 #include "initialization.h"
 
 constexpr size_t STACK_CALL_LIMIT = 500;
-
-static std::string strip(std::string in)
-{
-	in.erase(std::remove_if(in.begin(), in.end(), [](std::string::value_type ch)
-		{ return !isalpha(ch); }
-	), in.end());
-	return in;
-}
-
-static auto splitString(std::string_view in, char sep) {
-	std::vector<std::string_view> r;
-	r.reserve(std::count(in.begin(), in.end(), sep) + 1); // optional
-	for (auto p = in.begin();; ++p) {
-		auto q = p;
-		p = std::find(p, in.end(), sep);
-		r.emplace_back(q, p);
-		if (p == in.end())
-			return r;
-	}
-}
 
 static int randomNumber() {
 	static std::mt19937 gen(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
@@ -74,10 +57,8 @@ bool Parser::strictedIsNumber(const std::string& lexeme, bool veryStrict) {
 	if (lexeme.length() == 2 && (lexeme[0] == '-' && lexeme[1] == '.')
 		|| ((lexeme[0] == '-' || lexeme[0] == '.') && std::isdigit(lexeme[1])))
 		return true && !veryStrict;
-	if (lexeme.length() >= 3 && (std::isdigit(lexeme[2]) || std::isdigit(lexeme[0])))
-		return true && !veryStrict;
 
-	return std::isdigit(lexeme[0]) && (std::isdigit(lexeme.back()) || !veryStrict);
+	return std::isdigit(lexeme.front()) && (std::isdigit(lexeme.back()) || !veryStrict);
 }
 
 static std::string_view trimLeadingZeros(const std::string& str) {
@@ -89,8 +70,6 @@ static std::string_view trimLeadingZeros(const std::string& str) {
 		return std::string_view(str.c_str() + start - (sep >= start && sep != std::string::npos ? 1 : 0), (str.length() - start));
 	return std::string_view(str);
 }
-
-// Parser::Node::Node(const GeneralLexeme& value) : value{ value } {/*std::cout << "(create " << value << ") "; */ }
 
 void Parser::setBracketOperators(const std::vector<std::pair<Lexeme, Lexeme>>& bracketPairs) {
 	mIsParserReady = false;
@@ -168,7 +147,7 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes
 		else if (result.empty() && numberBuffer.empty() && lexeme == "-" && !foundMinusSign)
 			foundMinusSign = true;
 
-		// gg debug this code
+		// gg debug this code [fucked up counter = 1]
 		else if (!numberBuffer.empty() &&
 			((lexeme == "." && foundDecimalPoint) ||
 				(lexeme == "-" && foundMinusSign) ||
@@ -178,10 +157,10 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes
 							mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
 						mBracketsOperators.openBracketsOperators.contains(result.back()))) ||
 					result.empty())) ||
-				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) ||
-				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) ||
-				(std::isdigit(lexeme[0]) && strictedIsNumber(numberBuffer, true)) ||
-				(!std::isdigit(lexeme[0]) && !isNumber(numberBuffer)))) {
+				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) || // curr is not a number, buffer is a number
+				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) || // curr is a number, buffer is not a number
+				(std::isdigit(lexeme[0]) && strictedIsNumber(numberBuffer, true)) || // curr is a number, buffer is a "number"
+				(!std::isdigit(lexeme[0]) && !isNumber(numberBuffer)))) { // curr is not a number, buffer is not a number
 			result.push_back(numberBuffer);
 			foundDecimalPoint = false;
 			foundMinusSign = false;
@@ -235,55 +214,67 @@ static Result<T> topPopNotEmpty(std::stack<T>& stk) {
 	return temp;
 }
 
-Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Parser::createOperatorTree(const std::vector<Lexeme>& parsedLexemes, bool returnVector) const {
+Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::vector<Lexeme>& parsedLexemes) const {
 	if (!mIsParserReady)
 		return ParserNotReadyError("Please run parserReady() first!, To make sure that parser is ready.");
 
 	std::stack<NodeFactory::NodePos> resultStack;
 	std::stack<Lexeme> operatorStack;
 
+	const auto checkOperatorEvalTypeState = [this](const Lexeme& lexeme, OperatorEvalType checkState) {
+		return (mOperatorEvalTypes.contains(lexeme) && (mOperatorEvalTypes.at(lexeme) == checkState));
+	};
+
 	for (auto it = parsedLexemes.begin(); it != parsedLexemes.end(); it++) {
 		const Parser::Lexeme parsedLexeme = *it;
 
 		// if is a operand or a constant
-		if (strictedIsNumber(parsedLexeme) || (mOperatorEvalTypes.contains(parsedLexeme) && (mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Constant))) {
-			resultStack.push(NodeFactory::create(parsedLexeme));
+		if ((strictedIsNumber(parsedLexeme) || checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant)) && 
+			(it == parsedLexemes.begin() || (!strictedIsNumber(*std::prev(it)) && !checkOperatorEvalTypeState(*std::prev(it), OperatorEvalType::Constant)))) {
+
+			NodeFactory::NodePos temp{ NodeFactory::create(parsedLexeme) };
+			if (checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant))
+				NodeFactory::node(temp).nodestate = NodeFactory::Node::NodeState::Operator;
+
+			resultStack.push(temp);
 
 			// if is a argument of postfix operator
-			while (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix)
+			while (!operatorStack.empty() && checkOperatorEvalTypeState(operatorStack.top(), OperatorEvalType::Postfix))
 			{
 				auto operatorNode = NodeFactory::create(topPopNotEmpty(operatorStack).getValue()); // guarantee that operatorNodeValue will always contains a value.
 				auto prefixOperandNodeValue = topPopNotEmpty(resultStack);
 				EXCEPT_RETURN(prefixOperandNodeValue);
 
+				NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
 				NodeFactory::node(operatorNode).rightPos = prefixOperandNodeValue.getValue();
 				resultStack.push(operatorNode);
 			}
 		}
 
 		// if stack is empty, if is open bracket, if top stack is open bracket
-		else if (!mBracketsOperators.closeBracketsOperators.contains(parsedLexeme) &&
-			!(mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Prefix && !resultStack.empty()) &&
-			!(mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Postfix) &&
+		else if (!strictedIsNumber(parsedLexeme) && !checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant) &&
+			!mBracketsOperators.closeBracketsOperators.contains(parsedLexeme) &&
+			!(checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Prefix) && !resultStack.empty()) &&
+			!(checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Postfix)) &&
 			(operatorStack.empty() ||
 				mBracketsOperators.openBracketsOperators.contains(parsedLexeme) ||
 				mBracketsOperators.openBracketsOperators.contains(operatorStack.top())))
 			operatorStack.push(parsedLexeme);
 
 		// if postfix operator, ignore
-		else if (mOperatorEvalTypes.contains(parsedLexeme)
-			&& mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Postfix) {
+		else if (checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Postfix)) {
 			operatorStack.push(parsedLexeme);
 			continue;
 		}
 
 		// if is a prefix operator
-		else if (mOperatorEvalTypes.contains(parsedLexeme) && mOperatorEvalTypes.at(parsedLexeme) == OperatorEvalType::Prefix && !resultStack.empty()) {
+		else if (checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Prefix) && !resultStack.empty()) {
 			auto operatorNode = NodeFactory::create(parsedLexeme);
 			auto prefixOperandNode = topPopNotEmpty(resultStack);
 			EXCEPT_RETURN(prefixOperandNode);
 
 			NodeFactory::node(operatorNode).leftPos = prefixOperandNode.getValue();
+			NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
 			resultStack.push(operatorNode);
 		}
 
@@ -293,21 +284,25 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 
 			if (mRawExpressionBracketEvalTypes.contains(openBracket)) {
 				Lexeme operatorNodeValue;
-				if (const auto prevIt{ *std::prev(it) }; strictedIsNumber(prevIt) || (mOperatorEvalTypes.contains(prevIt) && mOperatorEvalTypes.at(prevIt) == OperatorEvalType::Constant))
-				{
+				if (const auto prevIt{ *std::prev(it) }; strictedIsNumber(prevIt) || (mOperatorEvalTypes.contains(prevIt) && mOperatorEvalTypes.at(prevIt) == OperatorEvalType::Constant)) {
 					auto operatorNodeRawValue = topPopNotEmpty(resultStack);
 					EXCEPT_RETURN(operatorNodeRawValue);
 					operatorNodeValue = NodeFactory::node(operatorNodeRawValue.getValue()).value;
 				}
-				else
-				{
+				else {
 					auto operatorNodeRawValue = topPopNotEmpty(operatorStack);
 					EXCEPT_RETURN(operatorNodeRawValue);
 					operatorNodeValue = operatorNodeRawValue.getValue();
+
+					if (operatorNodeValue == openBracket) { // empty bracket case
+						operatorNodeValue = "";
+						operatorStack.emplace(openBracket);
+					}
 				}
 
-				auto operatorNode = (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion) ?
-					createRawExpressionOperatorTree(operatorNodeValue) :
+				auto operatorNode = (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion ||
+					mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::Storage) ?
+					createRawExpressionOperatorTree(operatorNodeValue, mRawExpressionBracketEvalTypes.at(openBracket)) :
 					NodeFactory::create(operatorNodeValue);
 				EXCEPT_RETURN(operatorNode);
 
@@ -324,6 +319,7 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 				EXCEPT_RETURN(operatorNodeValue);
 
 				auto operatorNode = NodeFactory::create(operatorNodeValue.getValue());
+				NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
 
 				processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
 
@@ -334,45 +330,34 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 				return ParserSyntaxError("bracket closed before one open.");
 			operatorStack.pop(); // error here
 
-			// if current expression is argument of lambda function
-			if (NodeFactory::node(resultStack.top()).nodestate == NodeFactory::Node::NodeState::Storage) {
-				auto storageNode = topPopNotEmpty(resultStack);
-				auto lambdaNode = topPopNotEmpty(resultStack);
-
-				if (!lambdaNode.isError() && NodeFactory::node(lambdaNode.getValue()).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-					NodeFactory::node(lambdaNode.getValue()).rightPos = NodeFactory::node(storageNode.getValue()).leftPos;
-					resultStack.push(lambdaNode.getValue());
-				}
-				else {
-					resultStack.push(storageNode.getValue());
-					if (!lambdaNode.isError())
-						resultStack.push(lambdaNode.getValue());
-				}
-			}
+			if (resultStack.empty())
+				return std::vector<NodeFactory::NodePos>{}; // return null
 
 			// if current expression is argument of postfix operator
-			if (!operatorStack.empty() && mOperatorEvalTypes.contains(operatorStack.top()) && mOperatorEvalTypes.at(operatorStack.top()) == OperatorEvalType::Postfix) {
-				auto operatorNodeValue = topPopNotEmpty(operatorStack);
-				auto prefixOperandNode = topPopNotEmpty(resultStack);
+			while (!operatorStack.empty() && checkOperatorEvalTypeState(operatorStack.top(), OperatorEvalType::Postfix)) {
+				auto operatorNode = NodeFactory::create(topPopNotEmpty(operatorStack).getValue()); // guarantee that operatorNodeValue will always contains a value.
+				auto prefixOperandNodeValue = topPopNotEmpty(resultStack);
+				EXCEPT_RETURN(prefixOperandNodeValue);
 
-				EXCEPT_RETURN(prefixOperandNode);
-				EXCEPT_RETURN(operatorNodeValue);
-
-				auto operatorNode = NodeFactory::create(operatorNodeValue.getValue());
-				NodeFactory::node(operatorNode).rightPos = prefixOperandNode.getValue();
+				NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
+				NodeFactory::node(operatorNode).rightPos = prefixOperandNodeValue.getValue();
 				resultStack.push(operatorNode);
 			}
 		}
 
 		// if current operator level is higher than top stack
-		else if (mOperatorLevels.contains(parsedLexeme) && mOperatorLevels.contains(operatorStack.top()) &&
+		else if (!checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant) && mOperatorLevels.contains(parsedLexeme) && mOperatorLevels.contains(operatorStack.top()) &&
 			mOperatorLevels.at(parsedLexeme) > mOperatorLevels.at(operatorStack.top()))
 			operatorStack.push(parsedLexeme);
 
-		// if current operator level is lesser than top stack
-		else if (mOperatorLevels.contains(parsedLexeme) && mOperatorLevels.contains(operatorStack.top()) &&
-			mOperatorLevels.at(parsedLexeme) <= mOperatorLevels.at(operatorStack.top())) {
-			while (!operatorStack.empty() && mOperatorLevels.contains(operatorStack.top()) && (mOperatorLevels.at(parsedLexeme) <= mOperatorLevels.at(operatorStack.top()))) {
+		// if current operator level is lesser than top stack or both current lexeme and last lexeme is a number
+		else if (((strictedIsNumber(parsedLexeme) || checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant)) &&
+			(strictedIsNumber(*std::prev(it)) || checkOperatorEvalTypeState(*std::prev(it), OperatorEvalType::Constant))) ||
+			(mOperatorLevels.contains(parsedLexeme) && mOperatorLevels.contains(operatorStack.top()) &&
+				mOperatorLevels.at(parsedLexeme) <= mOperatorLevels.at(operatorStack.top()))) {
+
+			size_t currLexemeOperatorLevels{ strictedIsNumber(parsedLexeme) ? 0 : mOperatorLevels.at(parsedLexeme) };
+			while (!operatorStack.empty() && mOperatorLevels.contains(operatorStack.top()) && (currLexemeOperatorLevels <= mOperatorLevels.at(operatorStack.top()))) {
 				auto operatorNodeValue = topPopNotEmpty(operatorStack);
 				auto operandNode2 = topPopNotEmpty(resultStack);
 				auto operandNode1 = topPopNotEmpty(resultStack);
@@ -383,10 +368,20 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 
 				auto operatorNode = NodeFactory::create(operatorNodeValue.getValue());
 				processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
+				NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
 
 				resultStack.push(operatorNode);
 			}
-			operatorStack.push(parsedLexeme);
+
+			if (strictedIsNumber(parsedLexeme))
+				resultStack.push(NodeFactory::create(parsedLexeme));
+			else if (checkOperatorEvalTypeState(parsedLexeme, OperatorEvalType::Constant)) {
+				NodeFactory::NodePos temp{ NodeFactory::create(parsedLexeme) };
+				NodeFactory::node(temp).nodestate = NodeFactory::Node::NodeState::Operator;
+				resultStack.push(temp);
+			}
+			else
+				operatorStack.push(parsedLexeme);
 		}
 
 		else
@@ -403,25 +398,22 @@ Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> Pa
 		EXCEPT_RETURN(operatorNodeValue);
 
 		auto operatorNode = NodeFactory::create(operatorNodeValue.getValue());
+		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
 
 		processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
 		resultStack.push(operatorNode);
 	}
 
 	if (resultStack.empty())
-		return ParserSyntaxError("Noting to parsed, value required!");
+		return std::vector<NodeFactory::NodePos>{}; // return null
 
-	if (returnVector)
-	{
-		std::vector<NodeFactory::NodePos> tmp(resultStack.size(), NodeFactory::NodePosNull);
-		for (size_t i{ resultStack.size() }; i > 0; i--) {
-			tmp[i - 1] = resultStack.top();
-			resultStack.pop();
-		}
-		return std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>(tmp);
+	std::vector<NodeFactory::NodePos> tmp(resultStack.size(), NodeFactory::NodePosNull);
+	for (size_t i{ resultStack.size() }; i > 0; i--) {
+		tmp[i - 1] = resultStack.top();
+		resultStack.pop();
 	}
 
-	return std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>(resultStack.top());
+	return tmp;
 }
 
 NodeFactory::NodePos Parser::createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const {
@@ -437,63 +429,125 @@ NodeFactory::NodePos Parser::createRawExpressionStorage(const std::vector<NodeFa
 		NodeFactory::node(tail).rightPos = curr;
 		tail = curr;
 	}
-
 	return root;
 }
 
-Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression) const
+bool Parser::checkIfValidParameterName(const std::string& parameter) const {
+	if (strictedIsNumber(parameter, true))
+		return false;
+	if (mOperatorEvalTypes.contains(parameter))
+		return false;
+	if (mBracketsOperators.closeBracketsOperators.contains(parameter) ||
+		mBracketsOperators.openBracketsOperators.contains(parameter))
+		return false;
+	if (mRawExpressionBracketEvalTypes.contains(parameter))
+		return false;
+	return true;
+}
+
+std::optional<std::runtime_error> Parser::getLambdaType(std::vector<std::pair<std::string, RuntimeType>>& parametersWithTypes, std::string parameterExpression) const {
+	std::regex pattern("(\\w+)(?::(\\w+(?:\\[\\w+(?:,\\w+)?\\])?))?");
+	std::smatch matches;
+
+	while (std::regex_search(parameterExpression, matches, pattern)) {
+		if (matches[2].str().empty()) {
+			if (!checkIfValidParameterName(matches[1].str()))
+				return ParserSyntaxError(
+					std::format(
+						"The parameter name \"{}\" is not valid. Parameter names cannot be operators, numbers, or brackets.",
+						matches[1].str()
+					)
+				);
+
+			parametersWithTypes.emplace_back(matches[1], RuntimeBaseType::Number);
+		}
+
+		else {
+			Result<RuntimeType, std::runtime_error> parsedRuntimeTypedResult{ RuntimeCompoundType::ParseString(matches[2]) };
+
+			if (parsedRuntimeTypedResult.isError())
+				return ParserSyntaxError(
+					parsedRuntimeTypedResult.getException(),
+					std::format(
+						"When attempting to parse the type of a lambda function parameter \"{}\".",
+						matches[3].str()
+					),
+					"Parser::createRawExpressionOperatorTree");
+
+			parametersWithTypes.emplace_back(matches[1], parsedRuntimeTypedResult.moveValue());
+		}
+		parameterExpression = matches.suffix().str();
+	}
+
+	return std::nullopt;
+}
+
+Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType) const
 {
 	std::string_view rawVariablesExpression;
 	std::string_view rawOperationTree(RawExpression);
-	std::vector<std::string> variableLexemes;
-	bool isLambdaFunction{ false };
-	Parser pas(*this);
 
-	if (auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') }; variableSpilterIndex != RawExpression.end()) {
+	bool foundParameterSlot{ false };
+	Parser pas(*this); // very expensive
+
+	std::vector<std::string> rawExpressionLexemes = initializeStaticLexer(std::vector<std::string>{ ",", ";", "Number", "Storage", "Lambda" })(RawExpression);
+	std::vector<std::pair<std::string, RuntimeType>> variableLexemesWithTypes;
+
+	auto variableSpilterIndexExist{ std::ranges::find(rawExpressionLexemes, ";") };
+
+	if (auto variableSpilterIndex{ std::ranges::find(RawExpression, ';') };
+		variableSpilterIndexExist != rawExpressionLexemes.end() && variableSpilterIndex != RawExpression.end()) {
 		rawVariablesExpression = std::string_view(RawExpression.begin(), variableSpilterIndex);
 		rawOperationTree = std::string_view(++variableSpilterIndex, RawExpression.end());
 
-		for (const auto splited : splitString(rawVariablesExpression, ','))
-		{
-			variableLexemes.emplace_back(splited);
-			pas.addOperatorEvalType(std::string(splited), OperatorEvalType::Constant);
-			pas.addOperatorLevel(std::string(splited), 9);
-		}
+		foundParameterSlot = true;
+		if (std::optional<std::runtime_error> parameterParsingError{ getLambdaType(variableLexemesWithTypes, std::string(rawVariablesExpression)) }; parameterParsingError.has_value())
+			return parameterParsingError.value();
 
-		isLambdaFunction = true;
+		for (const auto& [variableLexeme, _] : variableLexemesWithTypes) {
+			pas.addOperatorEvalType(variableLexeme, Parser::OperatorEvalType::Constant);
+			pas.addOperatorLevel(variableLexeme, 9);
+			pas.mTempConstant.emplace(variableLexeme);
+		}
 	}
 
-	auto operationTree = initializeStaticLexer(variableLexemes)(rawOperationTree.data());
+	auto operationTree = initializeStaticLexer(pas.mTempConstant)(std::string(rawOperationTree));
 	auto parsedNumberOperationTree = parseNumbers(operationTree);
 
 	pas._ignore_parserReady();
-	if (isLambdaFunction) {
-		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree);
-		EXCEPT_RETURN(fullyParsedOperationTree);
-
-		auto fullyParsedOperationTreeValue{ fullyParsedOperationTree.getValue() };
-
-		auto operatorNode = NodeFactory::create(std::format("lambda-{:x}", randomNumber()));
+	auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree);
+	EXCEPT_RETURN(fullyParsedOperationTree);
+	
+	if (RawExpressionType == NodeFactory::Node::NodeState::LambdaFuntion) {
+		NodeFactory::NodePos operatorNode = createRawExpressionStorage(fullyParsedOperationTree.getValue());
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::LambdaFuntion;
-		NodeFactory::node(operatorNode).leftPos = std::get<NodeFactory::NodePos>(fullyParsedOperationTreeValue);
-		NodeFactory::node(operatorNode).utilityStorage = variableLexemes;
+		NodeFactory::node(operatorNode).utilityStorage = variableLexemesWithTypes;
+		NodeFactory::node(operatorNode).value = std::format("lambda-{:x}", randomNumber());
 
 		return operatorNode;
 	}
 
-	else {
-		auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree, true);
-		EXCEPT_RETURN(fullyParsedOperationTree);
+	else if (!foundParameterSlot && RawExpressionType == NodeFactory::Node::NodeState::Storage) {
+		NodeFactory::NodePos operatorNode;
 
-		auto fullyParsedOperationTreeValue{ fullyParsedOperationTree.getValue() };
+		if (RawExpression == "")
+			operatorNode = NodeFactory::create();
+		else 
+			operatorNode = createRawExpressionStorage(fullyParsedOperationTree.getValue());
 
-		auto operatorNode = NodeFactory::create(std::format("storage-{:x}", randomNumber()));
+		NodeFactory::node(operatorNode).value = std::format("storage-{:x}", randomNumber());
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Storage;
-		std::cout << "log:" << std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue) << "\n";
-		NodeFactory::node(operatorNode).leftPos = createRawExpressionStorage(std::get<std::vector<NodeFactory::NodePos>>(fullyParsedOperationTreeValue));
 
 		return operatorNode;
 	}
+
+	return ParserSyntaxError(
+		std::format(
+			R"(The "Storage" class cannot contain a parameter slot named "{}" as it is not valid.)",
+			RawExpression
+		),
+		"Parser::createRawExpressionOperatorTree"
+	);
 }
 
 std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level) const {
@@ -514,20 +568,20 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level)
 
 	// if a lambda function
 	if (treeNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-		const std::vector<std::string>& parameters = treeNode.utilityStorage;
+		const std::vector <std::pair<std::string, RuntimeType>>& parameters = treeNode.utilityStorage;
 		std::vector<std::string> arguments;
 
 		// get argument values
-		NodeFactory::NodePos currArgNodePos = treeNode.rightPos;
-		while (NodeFactory::validNode(currArgNodePos)) {
-			std::string result = printOpertatorTree(NodeFactory::node(currArgNodePos).leftPos);
-			arguments.push_back(result);
-			currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
-		}
+		// 
+		//NodeFactory::NodePos currArgNodePos = treeNode.rightPos;
+		//while (NodeFactory::validNode(currArgNodePos)) {
+		//	arguments.emplace_back(printOpertatorTree(NodeFactory::node(currArgNodePos).leftPos));
+		//	currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
+		//}
 
 		result << "<";
 		for (size_t i{ 0 }, par{ parameters.size() }, arg{ arguments.size() }, len{ std::max(par, arg) }; i < len; i++) {
-			result << ((i < par) ? parameters[i] : "null") << (arg ? ("(" + ((i < arg) ? arguments[i] : "null") + ")") : "") << ", ";
+			result << ((i < par) ? parameters[i].first : "null") << ":" << ((i < par) ? parameters[i].second : RuntimeBaseType::_Storage) << (arg ? ("(" + ((i < arg) ? arguments[i] : "null") + ")") : "") << ", ";
 		}
 
 		treeNode.utilityStorage.size() && result.seekp(-2, std::ios_base::end);
@@ -539,14 +593,12 @@ std::string Parser::printOpertatorTree(NodeFactory::NodePos tree, size_t _level)
 	if (treeNode.nodestate == NodeFactory::Node::NodeState::Storage) {
 		result << NodeFactory::node(tree).value << "[";
 
-		if (NodeFactory::validNode(treeNode.leftPos)) {
-			NodeFactory::NodePos curr = treeNode.leftPos;
-			while (NodeFactory::validNode(curr)) {
-				result << "(" << printOpertatorTree(NodeFactory::node(curr).leftPos, _level + 1) << "), ";
-				curr = NodeFactory::node(curr).rightPos;
-			}
-			result.seekp(-2, std::ios_base::end);
+		NodeFactory::NodePos curr = tree;
+		while (NodeFactory::validNode(curr)) {
+			result << "(" << printOpertatorTree(NodeFactory::node(curr).leftPos, _level + 1) << "), ";
+			curr = NodeFactory::node(curr).rightPos;
 		}
+		result.seekp(-2, std::ios_base::end);
 
 		result << "]";
 		return result.str();

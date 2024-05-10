@@ -1,4 +1,5 @@
 #pragma once
+
 #include <functional>
 #include <optional>
 #include <tuple>
@@ -7,6 +8,8 @@
 #include <memory>
 #include <type_traits>
 
+#include "runtimeType.h"
+#include "runtimeTypedExprComponent.h"
 #include "result.h"
 #include "parser.h"
 #include "nodeFactory.h"
@@ -18,36 +21,34 @@ public:
 	explicit EvaluationDefinitionError(const std::string& msg) : std::runtime_error("EvaluationDefinitionError: " + msg) {}
 };
 
+
+// Custom exception class for runtime type errors
 class EvaluationFailedError : public std::runtime_error {
 public:
-	explicit EvaluationFailedError(const std::string& msg) : std::runtime_error("EvaluationFailedError: " + msg) {}
+	// Constructor with a single message
+	explicit EvaluationFailedError(const std::string& message)
+		: std::runtime_error("EvaluationFailedError: " + message) {}
+
+	// Constructor with message and origin information
+	explicit EvaluationFailedError(const std::string& message, const std::string& from)
+		: std::runtime_error("EvaluationFailedError: " + message + " (from: " + from + ")") {}
+
+	// Constructor with chained error, message, and origin information
+	explicit EvaluationFailedError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
+		: std::runtime_error("EvaluationFailedError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
 };
 
-template <typename T>
-concept Arithmetic = std::is_arithmetic_v<T>;
-
-template <Arithmetic Number>
 class Evaluate {
 private:
 	const Parser& parser;
-	std::shared_ptr<std::unordered_map<Parser::Lexeme, std::function<Number(Number)>>> mPrefixOperatorFunctions;
-	std::shared_ptr<std::unordered_map<Parser::Lexeme, std::function<Number(Number, Number)>>> mInfixOperatorFunctions;
-	std::shared_ptr<std::unordered_map<Parser::Lexeme, std::function<Number(Number)>>> mPostfixOperatorFunctions;
-	std::unordered_map<Parser::Lexeme, std::function<Number()>> mConstantOperatorFunctions;
+	std::shared_ptr<std::unordered_map<Parser::Lexeme, Lambda>> mOperatorFunctions;
 
 public:
 	Evaluate(const Parser& parser);
 	Evaluate(const Parser& parser, const Evaluate& other);
-	void addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number(Number, Number)>& operatorDefinition);
-	void addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number(Number)>& operatorDefinition);
-	void addOperatorFunction(const Parser::Lexeme& operatorLexeme, const std::function<Number()>& operatorDefinition);
-	Result<Number> evaluateExpressionTree(NodeFactory::NodePos root) const;
-
-private:
-	Result<Number> evaluatePrefix(const Parser::Lexeme& opr, Number left) const;
-	Result<Number> evaluateInfix(const Parser::Lexeme& opr, Number left, Number right) const;
-	Result<Number> evaluatePostfix(const Parser::Lexeme& opr, Number right) const;
-	Result<Number> evaluateConstant(const Parser::Lexeme& opr) const;
+	void addOperatorFunction(const Lambda& operatorDefinition);
+	void addOperatorFunction(Lambda&& operatorDefinition);
+	Result<RuntimeTypedExprComponent> evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots) const;
 };
 
 #include "evaluation_impl.h"

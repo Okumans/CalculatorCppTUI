@@ -11,14 +11,26 @@
 #include "lexer.h"
 #include "nodeFactory.h"
 
-class ParserSyntaxError : public std::runtime_error {
-public:
-	explicit ParserSyntaxError(const std::string& msg) : std::runtime_error("ParserSyntaxError: " + msg) {}
-};
-
 class ParserNotReadyError : public std::runtime_error {
 public:
 	explicit ParserNotReadyError(const std::string& msg) : std::runtime_error("ParserSyntaxError: " + msg) {}
+};
+
+
+// Custom exception class for runtime type errors
+class ParserSyntaxError: public std::runtime_error {
+public:
+	// Constructor with a single message
+	explicit ParserSyntaxError(const std::string& message)
+		: std::runtime_error("ParserSyntaxError: " + message) {}
+
+	// Constructor with message and origin information
+	explicit ParserSyntaxError(const std::string& message, const std::string& from)
+		: std::runtime_error("ParserSyntaxError: " + message + " (from: " + from + ")") {}
+
+	// Constructor with chained error, message, and origin information
+	explicit ParserSyntaxError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
+		: std::runtime_error("ParserSyntaxError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
 };
 
 class Parser {
@@ -27,10 +39,10 @@ public:
 	using Lexeme = std::string;
 
 	enum class OperatorEvalType : int8_t {
-		Prefix,
 		Infix,
 		Postfix,
-		Constant
+		Prefix,
+		Constant,
 	};
 
 private:
@@ -45,8 +57,8 @@ public:
 
 	// main functions
 	std::vector<Lexeme> parseNumbers(const std::vector<Lexeme>& lexemes) const;
-	Result<std::variant<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, bool returnVector = false) const;
-	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression) const;
+	Result<std::vector<NodeFactory::NodePos>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes) const;
+	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType) const;
 	NodeFactory::NodePos createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const;
 	
 	// setters
@@ -65,4 +77,8 @@ public:
 
 	std::optional<ParserNotReadyError> parserReady();
 	void _ignore_parserReady();
+private:
+	std::unordered_set<Lexeme> mTempConstant;
+	std::optional<std::runtime_error> getLambdaType(std::vector<std::pair<std::string, RuntimeType>>& parametersWithTypes, std::string parameterExpression) const;
+	bool checkIfValidParameterName(const std::string& parameter) const;
 };
