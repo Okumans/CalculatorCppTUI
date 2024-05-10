@@ -72,6 +72,7 @@ public:
 	const RuntimeType& getType() const {
 		return mType;
 	}
+	
 	NodePos getNodeExpression() const {
 		return mNodeExpression;
 	}
@@ -79,6 +80,10 @@ public:
 protected:
 	RuntimeType mType;
 	NodePos mNodeExpression;
+
+	void setNodeExpression(NodePos nodeExpression) {
+		mNodeExpression = nodeExpression;
+	}
 
 	BaseRuntimeTypedExprComponent(const RuntimeType& type, NodePos nodeExpression) :
 		mType{ type },
@@ -104,7 +109,7 @@ public:
 	static Number fromExpressionNode(NodePos numberNodeExpression);
 
 	long double getNumber() const;
-	std::string toString() const;
+	std::string toString() const override;
 
 	operator long double() const;
 
@@ -140,7 +145,7 @@ public:
 	RuntimeCompoundType::LambdaInfo getLambdaInfo() const;
 	std::optional<std::string_view> getLambdaSignature() const;
 	LambdaNotation getNotation() const;
-	std::string toString() const;
+	std::string toString() const override;
 
 private:
 	RuntimeCompoundType::LambdaInfo mLambdaInfo;
@@ -178,7 +183,7 @@ public:
 	const RuntimeTypedExprComponent& operator[](size_t index) const;
 	const std::vector<RuntimeTypedExprComponent>& getData() const;
 	size_t size() const;
-	std::string toString() const;
+	std::string toString() const override;
 
 private:
 	RuntimeCompoundType::StorageInfo mStorageInfo;
@@ -219,7 +224,7 @@ private:
 
 template <>
 struct std::formatter<RuntimeTypedExprComponent> : std::formatter<std::string> {
-	auto format(RuntimeTypedExprComponent rtt, format_context& ctx) const {
+	auto format(const RuntimeTypedExprComponent& rtt, format_context& ctx) const {
 		std::ostringstream ss;
 		ss << rtt;
 		return formatter<string>::format(

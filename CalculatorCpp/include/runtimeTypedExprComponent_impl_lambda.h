@@ -9,11 +9,11 @@
 #include "runtimeTypedExprComponent.h"
 
 inline Lambda::Lambda(const Lambda& other) :
-	mLambdaNotation{ other.mLambdaNotation },
+	BaseRuntimeTypedExprComponent(other.mType, other.mNodeExpression),
 	mLambdaInfo{ other.mLambdaInfo },
+	mLambdaNotation{ other.mLambdaNotation },
 	mLambdaFunction{ other.mLambdaFunction },
-	mLambdaFunctionSignature{ other.mLambdaFunctionSignature },
-	BaseRuntimeTypedExprComponent(other.mType, other.mNodeExpression) {}
+	mLambdaFunctionSignature{ other.mLambdaFunctionSignature } {}
 
 inline Lambda& Lambda::operator=(const Lambda& other) {
 	if (this != &other) {
@@ -26,14 +26,15 @@ inline Lambda& Lambda::operator=(const Lambda& other) {
 	return *this;
 }
 
-inline Lambda::Lambda(Lambda&& other) noexcept
-	: mLambdaInfo(std::move(other.mLambdaInfo)),
-	mLambdaNotation(other.mLambdaNotation),
-	mLambdaFunction(std::move(other.mLambdaFunction)),
-	mLambdaFunctionSignature(std::move(other.mLambdaFunctionSignature)),
+inline Lambda::Lambda(Lambda&& other) noexcept :
 	BaseRuntimeTypedExprComponent(
 		std::move(other.mType),
-		other.mNodeExpression) { }
+		other.mNodeExpression
+	),
+	mLambdaInfo(std::move(other.mLambdaInfo)),
+	mLambdaNotation(other.mLambdaNotation),
+	mLambdaFunction(std::move(other.mLambdaFunction)),
+	mLambdaFunctionSignature(std::move(other.mLambdaFunctionSignature)) {}
 
 inline Lambda& Lambda::operator=(Lambda&& other) noexcept {
 	if (this != &other) {
@@ -50,11 +51,11 @@ inline Lambda::Lambda(
 	const RuntimeCompoundType& lambdaType,
 	LambdaNotation lambdaNotation,
 	const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction) :
-	mLambdaNotation{ lambdaNotation },
+	BaseRuntimeTypedExprComponent(lambdaType, generateExpressionTree(lambdaFunctionSignature)),
 	mLambdaInfo{ RuntimeCompoundType::getLambdaInfo(lambdaType) },
+	mLambdaNotation{ lambdaNotation },
 	mLambdaFunction{ std::make_shared<std::function<RuntimeTypedExprComponent(LambdaArguments)>>(lambdaFunction) },
-	mLambdaFunctionSignature{ lambdaFunctionSignature },
-	BaseRuntimeTypedExprComponent(lambdaType, generateExpressionTree(lambdaFunctionSignature))
+	mLambdaFunctionSignature{ lambdaFunctionSignature }
 {
 	// gurantree noexcept, assertion will be test in wrapper function
 	// assert(mmLambdaInfo.ParamsNumbers == mLambdaParametersName.size());
@@ -65,10 +66,10 @@ inline Lambda::Lambda(
 	const RuntimeCompoundType& lambdaType,
 	LambdaNotation lambdaNotation,
 	NodePos lambdaFunctionRootNode) :
-	mLambdaNotation{ lambdaNotation },
+	BaseRuntimeTypedExprComponent(lambdaType, lambdaFunctionRootNode),
 	mLambdaInfo{ RuntimeCompoundType::getLambdaInfo(lambdaType) },
-	mLambdaFunction{ lambdaFunctionRootNode },
-	BaseRuntimeTypedExprComponent(lambdaType, lambdaFunctionRootNode)
+	mLambdaNotation{ lambdaNotation },
+	mLambdaFunction{ lambdaFunctionRootNode }
 {
 	// gurantree noexcept, assertion will be test in wrapper function
 	// assert(mmLambdaInfo.ParamsNumbers == mLambdaParametersName.size());
@@ -158,8 +159,8 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 
 		std::vector<RuntimeType> parameterTypes;
 		parameterTypes.reserve(NodeFactory::node(lambdaFunctionRootNode).utilityStorage.size());
-		for (const std::pair<std::string, RuntimeType>& parameterWithType : NodeFactory::node(lambdaFunctionRootNode).utilityStorage)
-			parameterTypes.emplace_back(parameterWithType.second);
+		for (const auto &[_, parameterType] : NodeFactory::node(lambdaFunctionRootNode).utilityStorage)
+			parameterTypes.emplace_back(parameterType);
 
 		return Lambda(
 			std::get<RuntimeCompoundType>(returnTypeRaw.getValue()),
@@ -307,7 +308,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 	std::unordered_map<std::string, Lambda> evaluatorLambdaFunctionsSnapshot(EvaluatorLambdaFunctions);
 	std::unordered_map<std::string, NodePos> parameterConstantsReplacement;
 
-	const std::vector<std::pair<std::string, RuntimeType>> parameters{
+	const std::vector<std::pair<std::string, RuntimeType>>& parameters{
 		NodeFactory::node(std::get<NodePos>(mLambdaFunction)).utilityStorage
 	}; // allowed, usage doesn't involve recusive function such as Lambda::evaluate or Lambda::_NodeExpressionEvaluate
 
@@ -479,7 +480,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 		// if currNode is a leaf node.
 		if (!NodeFactory::validNode(currNode->rightPos) &&
 			!NodeFactory::validNode(currNode->leftPos)) {
-			if (currNode->value == ".")
+			if (currNode->value == "." || currNode->value == "-.")
 				resultMap[currNodePos] = 0;
 
 			else if (currNode->nodestate == NodeFactory::Node::NodeState::Storage)
@@ -509,102 +510,6 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 		}
 
 		else if (currNode->nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-			//std::vector<RuntimeTypedExprComponent> arguments;
-
-			//NodeFactory::NodePos currArgNodePos = currNode->rightPos;
-			//while (NodeFactory::validNode(currArgNodePos)) {
-			//	Result<RuntimeTypedExprComponent, std::runtime_error>&& result{
-			//		_NodeExpressionEvaluate(
-			//			NodeFactory::node(currArgNodePos).leftPos,
-			//			EvaluatorLambdaFunctions
-			//		)
-			//	};
-
-			//	currNode = &NodeFactory::node(currNodePos); // update currNode, _NodeExpressionEvaluate can change currNode address.
-			//	parameters = &currNode->utilityStorage; // update parameters, _NodeExpressionEvaluate can change currNode address affects parameters.
-
-			//	if (result.isError())
-			//		return LambdaEvaluationError(
-			//			result.getException(),
-			//			std::format(
-			//				"When attempting to evaluate an argument. (value = {})",
-			//				NodeFactory::validNode(NodeFactory::node(currArgNodePos).leftPos)
-			//				? NodeFactory::node(currArgNodePos).leftNode().value
-			//				: "Null"),
-			//			"Lambda::_NodeExpressionEvaluate"
-			//		);
-
-			//	arguments.emplace_back(result.moveValue());
-			//	currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
-			//}
-
-			//if (arguments.empty()) {
-			//	Result<Lambda, std::runtime_error> currLambda{ fromExpressionNode(currNodePos, EvaluatorLambdaFunctions) };
-			//	if (currLambda.isError())
-			//		return LambdaEvaluationError(
-			//			currLambda.getException(),
-			//			std::format(
-			//				"When trying to convert nodeExpression to Lambda Function. (nodeExpression value = {})",
-			//				currNodePos
-			//			),
-			//			"Lambda::_NodeExpressionEvaluate"
-			//		);
-			//	return { currLambda.moveValue() };
-			//}
-
-			//if (arguments.size() != parameters->size())
-			//	return RuntimeTypeError(
-			//		std::format(
-			//			"Parameters size must be equal to argument size! ({}!={}).",
-			//			arguments.size(),
-			//			parameters->size()
-			//		),
-			//		"Lambda::_NodeExpressionEvaluate"
-			//	);
-
-			//std::unordered_map<std::string, Lambda> tempEvaluatorLambdaFunctions(EvaluatorLambdaFunctions);
-
-			//for (size_t ind{ 0 }, len{ parameters->size() }; ind < len; ind++) {
-			//	if ((*parameters)[ind].second != arguments[ind].getDetailTypeHold())
-			//		return RuntimeTypeError(
-			//			std::format(
-			//				"parameters type must be same as argument type! ({}!={})",
-			//				(*parameters)[ind].second,
-			//				arguments[ind].getDetailTypeHold()
-			//			),
-			//			"Lambda::_NodeExpressionEvaluate"
-			//		);
-
-			//	RuntimeTypedExprComponent&& constLambdaValue{ std::move(arguments[ind]) };
-			//	auto constLambda = [&constLambdaValue](const Lambda::LambdaArguments&) {
-			//		return constLambdaValue;
-			//		};
-
-			//	Result<Lambda, std::runtime_error> tempFunc{
-			//		Lambda::fromFunction(
-			//			(*parameters)[ind].first,
-			//			RuntimeCompoundType::Lambda(
-			//				(*parameters)[ind].second,
-			//				RuntimeBaseType::_Storage
-			//			),
-			//			Lambda::LambdaNotation::Constant,
-			//			constLambda
-			//		)
-			//	};
-
-			//	if (tempFunc.isError())
-			//		return LambdaConstructionError(
-			//			tempFunc.getException(),
-			//			std::format(
-			//				"When attempting to create a constant lambda function \"{}\", which is used for determine lambda function evaluation result.",
-			//				(*parameters)[ind].first
-			//			),
-			//			"Lambda::_NodeExpressionEvaluate"
-			//		);
-
-			//	tempEvaluatorLambdaFunctions.try_emplace((*parameters)[ind].first, tempFunc.moveValue());
-			//}
-
 			std::vector<NodeFactory::NodePos> expressions;
 
 			NodeFactory::NodePos currArgNodePos{ currNodePos };

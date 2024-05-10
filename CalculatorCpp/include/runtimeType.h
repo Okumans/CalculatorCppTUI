@@ -114,6 +114,11 @@ public:
     // Friend function to allow streaming RuntimeCompoundType objects to ostream
     friend std::ostream& operator<<(std::ostream& os, const RuntimeCompoundType& ect);
 
+    // Non Function to extract spectify information from lambda.
+    static RuntimeType _getLambdaParamsType(const RuntimeType& lambda);
+    static RuntimeType _getLambdaReturnType(const RuntimeType& lambda);
+    static size_t _getLambdaParamsNumbers(const RuntimeType& lambda);
+
     // Friend declarations for classes that might interact with RuntimeCompoundType or its nested types
     friend class Lambda;
     friend class Storage;
@@ -122,30 +127,25 @@ private:
     size_t generateHash(RuntimeBaseType wrapper, const std::vector<RuntimeType>& base) const;
     size_t generateHash(RuntimeBaseType wrapper, const RuntimeType& base) const;
 
-    // Non Function to extract spectify information from lambda.
-    static RuntimeType _getLambdaParamsType(const RuntimeType& lambda);
-    static RuntimeType _getLambdaReturnType(const RuntimeType& lambda);
-    static size_t _getLambdaParamsNumbers(const RuntimeType& lambda);
-
     // Private constructor for compound types (used by factory methods)
     RuntimeCompoundType(RuntimeBaseType wrapper, const std::vector<RuntimeType>& base) :
+        mHashed{ generateHash(wrapper, base) },
         Type{ wrapper },
-        Children{ base },
-        mHashed{ generateHash(wrapper, base) } {}
+        Children{ base } {}
 
     RuntimeCompoundType(RuntimeBaseType wrapper, std::vector<RuntimeType>&& base) :
-        Type{ wrapper },
         mHashed{ generateHash(wrapper, base) },
+        Type{ wrapper },
         Children{ std::move(base) } {}
 
     RuntimeCompoundType(RuntimeBaseType wrapper, const RuntimeType& base) :
+        mHashed{ generateHash(wrapper, {base}) },
         Type{ wrapper },
-        Children{ {base} },
-        mHashed{ generateHash(wrapper, {base}) } {}
+        Children{ {base} } {}
 
     RuntimeCompoundType(RuntimeBaseType wrapper, RuntimeType&& base) :
-        Type{ wrapper },
         mHashed{ generateHash(wrapper, base) },
+        Type{ wrapper },
         Children{ {std::move(base)} } {}
 };
 

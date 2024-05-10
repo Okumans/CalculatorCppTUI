@@ -20,7 +20,10 @@
 inline RuntimeCompoundType::RuntimeCompoundType(const RuntimeCompoundType& other) :
 	mHashed{ other.mHashed },
 	Type{ other.Type },
-	Children{ other.Children } {}
+	Children{ other.Children } {
+	static size_t count{ 0 };
+	//std::cout << "copy: " << ++count << " " << *this << "\n";
+}
 
 // Move constructor for RuntimeCompoundType
 inline RuntimeCompoundType::RuntimeCompoundType(RuntimeCompoundType&& other) noexcept :

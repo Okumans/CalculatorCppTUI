@@ -151,12 +151,12 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes
 		else if (!numberBuffer.empty() &&
 			((lexeme == "." && foundDecimalPoint) ||
 				(lexeme == "-" && foundMinusSign) ||
-				//(!((!result.empty() &&
-				//	((mOperatorEvalTypes.contains(result.back()) &&
-				//		(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
-				//			mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
-				//		mBracketsOperators.openBracketsOperators.contains(result.back()))) ||
-				//	result.empty())) ||
+				(!((!result.empty() &&
+					((mOperatorEvalTypes.contains(result.back()) &&
+						(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
+							mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
+						mBracketsOperators.openBracketsOperators.contains(result.back()))) ||
+					result.empty())) ||
 				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) || // curr is not a number, buffer is a number
 				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) || // curr is a number, buffer is not a number
 				(std::isdigit(lexeme[0]) && strictedIsNumber(numberBuffer, true)) || // curr is a number, buffer is a "number"
@@ -332,22 +332,6 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 			if (resultStack.empty())
 				return std::vector<NodeFactory::NodePos>{}; // return null
-
-			// if current expression is argument of lambda function (pending remove)
-			//if (NodeFactory::node(resultStack.top()).nodestate == NodeFactory::Node::NodeState::Storage) {
-			//	auto storageNode = topPopNotEmpty(resultStack);
-			//	auto lambdaNode = topPopNotEmpty(resultStack);
-
-			//	if (!lambdaNode.isError() && NodeFactory::node(lambdaNode.getValue()).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-			//		NodeFactory::node(lambdaNode.getValue()).rightPos = storageNode.getValue();
-			//		resultStack.push(lambdaNode.getValue());
-			//	}
-			//	else {
-			//		resultStack.push(storageNode.getValue());
-			//		if (!lambdaNode.isError())
-			//			resultStack.push(lambdaNode.getValue());
-			//	}
-			//}
 
 			// if current expression is argument of postfix operator
 			while (!operatorStack.empty() && checkOperatorEvalTypeState(operatorStack.top(), OperatorEvalType::Postfix)) {

@@ -82,6 +82,11 @@ const Result<Lambda, std::runtime_error> sqrtLambdaFunction = Lambda::fromFuncti
 	}
 );
 
+//const Result<Lambda, std::runtime_error> numberStorageIndex = Lambda::fromFunction(
+//	"numindex",
+//	RCT::Lambda(), Number)
+//);
+
 
 inline void initializeEvaluator(Evaluate& evaluator) {
 	evaluator.addOperatorFunction(addLambdaFunction.getValue());

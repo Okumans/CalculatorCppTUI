@@ -64,9 +64,8 @@ void test(size_t basicOperationAmount) {
 
 		if (!root.isError()) {
 			auto rootResult = root.moveValue();
-			auto rootVal = rootResult;
 
-			if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
+			if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
 				std::cout << "Result: " << std::fixed << result.getValue() << ", ";
 			else
 				std::cout << "ERROR: " << result.getException().what() << ", ";
@@ -83,8 +82,10 @@ void test(size_t basicOperationAmount) {
 
 int main(int argc, char* argv[])
 {
-	 //test(1'000'000); // 4.11 second
-	 //return 0;
+	NodeFactory::reserve(500);
+
+	 test(1'000'000); //  3.750989 second (best)
+	 return 0;
 
 	Lexer lex;
 	initializeLexer(lex);

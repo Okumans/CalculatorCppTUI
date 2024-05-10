@@ -146,49 +146,6 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 	NodeFactory::NodePos currArgNodePos = storageRootNode;
 	while (NodeFactory::validNode(currArgNodePos)) {
 		argumentNodeExpressions.emplace_back(NodeFactory::node(currArgNodePos).leftPos);
-		//NodeFactory::Node test = NodeFactory::node(currArgNodePos).leftNode();
-		//NodeFactory::Node::NodeState currNodeState = NodeFactory::node(currArgNodePos).leftNode().nodestate;
-		//NodePos currArgNodeLeftPos = NodeFactory::node(currArgNodePos).leftPos;
-		
-		//switch (currNodeState)
-		//{			
-		/*case NodeFactory::Node::NodeState::LambdaFuntion:
-		{
-			Result result = Lambda::fromExpressionNode(currArgNodeLeftPos, EvaluatorLambdaFunctions);
-			EXCEPT_RETURN(result);
-			arguments.emplace_back(result.getValue());
-			break;
-		}
-		case NodeFactory::Node::NodeState::Operator:
-		{
-			Result result = Lambda::fromExpressionNode(currArgNodeLeftPos, EvaluatorLambdaFunctions);
-			EXCEPT_RETURN(result);
-			arguments.emplace_back(result.getValue());
-			break;
-		}
-		case NodeFactory::Node::NodeState::Constant:
-		{
-			Result result = Lambda::fromExpressionNode(currArgNodeLeftPos, EvaluatorLambdaFunctions);
-			EXCEPT_RETURN(result);
-			Result evaluateResult{ result.getValue().evaluate(EvaluatorLambdaFunctions) };
-			EXCEPT_RETURN(evaluateResult);
-			arguments.emplace_back(evaluateResult.getValue());
-			break;
-		}
-		case NodeFactory::Node::NodeState::Number:
-		{
-			Number result = Number::fromExpressionNode(currArgNodeLeftPos);
-			arguments.emplace_back(result);
-			break;
-		}
-		case NodeFactory::Node::NodeState::Storage:
-		{
-			Result result = Storage::fromExpressionNode(currArgNodeLeftPos, EvaluatorLambdaFunctions);
-			EXCEPT_RETURN(result);
-			arguments.emplace_back(result.getValue());
-			break;
-		}
-		}*/
 		currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
 	}
 

@@ -47,6 +47,7 @@ public:
 	static NodePos create(const std::string& value = "");
 	static void freeAll();
 	static bool validNode(NodePos index);
+	static void reserve(size_t amount);
 
 private:
 	Node& iNode(NodePos index);
