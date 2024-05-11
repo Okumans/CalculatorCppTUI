@@ -512,29 +512,53 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 		else if (currNode->nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
 			std::vector<NodeFactory::NodePos> expressions;
 
-			NodeFactory::NodePos currArgNodePos{ currNodePos };
-			while (NodeFactory::validNode(currArgNodePos)) {
-				expressions.push_back(NodeFactory::node(currArgNodePos).leftPos);
-				currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
+			bool evalutateState = true;
+			for (const auto& [parameterName, _] : currNode->utilityStorage) 
+				evalutateState = evalutateState && EvaluatorLambdaFunctions.contains(parameterName);
+			
+			if (!evalutateState) {
+				Result<Lambda, std::runtime_error> lambdaFunctionResult{ 
+					Lambda::fromExpressionNode(currNodePos, EvaluatorLambdaFunctions) 
+				};
+
+				if (lambdaFunctionResult.isError())
+					return LambdaEvaluationError(
+						lambdaFunctionResult.getException(),
+						std::format(
+							"When attempting to convert a NodeExpression into a lambda function for evaluation. (nodeExpression value = {})",
+							currNode->value
+						),
+						"Lambda::_NodeExpressionsEvaluator"
+					);
+
+				resultMap[currNodePos] = lambdaFunctionResult.moveValue();
 			}
 
-			Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error>&& leftVal{
-				_NodeExpressionsEvaluator(expressions, EvaluatorLambdaFunctions)
-			};
+			else {
+				NodeFactory::NodePos currArgNodePos{ currNodePos };
+				while (NodeFactory::validNode(currArgNodePos)) {
+					expressions.push_back(NodeFactory::node(currArgNodePos).leftPos);
+					currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
+				}
 
-			if (leftVal.isError())
-				return LambdaEvaluationError(
-					leftVal.getException(),
-					std::format(
-						"When attempting to evaluate expession content of a lambda function. (value = {})",
-						(NodeFactory::validNode(NodeFactory::node(currNodePos).leftPos)
-							? NodeFactory::node(currNodePos).leftNode().value
-							: "Null")
-					),
-					"Lambda::_NodeExpressionEvaluate"
-				);
+				Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error>&& leftVal{
+					_NodeExpressionsEvaluator(expressions, EvaluatorLambdaFunctions)
+				};
 
-			resultMap[currNodePos] = leftVal.getValue().back();
+				if (leftVal.isError())
+					return LambdaEvaluationError(
+						leftVal.getException(),
+						std::format(
+							"When attempting to evaluate expession content of a lambda function. (value = {})",
+							(NodeFactory::validNode(NodeFactory::node(currNodePos).leftPos)
+								? NodeFactory::node(currNodePos).leftNode().value
+								: "Null")
+						),
+						"Lambda::_NodeExpressionEvaluate"
+					);
+
+				resultMap[currNodePos] = leftVal.getValue().back();
+			}
 		}
 
 		else if (currNode->nodestate == NodeFactory::Node::NodeState::Storage) {

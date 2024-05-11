@@ -131,6 +131,10 @@ Parser::OperatorEvalType Parser::getOperatorType(const Lexeme& oprLexeme) const 
 	return mOperatorEvalTypes.at(oprLexeme);
 }
 
+Parser::OperatorLevel Parser::getOperatorLevel(const Lexeme& oprLexeme) const {
+	return mOperatorLevels.at(oprLexeme);
+}
+
 std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes) const {
 	std::vector<std::string> result;
 	std::string numberBuffer{ "" };

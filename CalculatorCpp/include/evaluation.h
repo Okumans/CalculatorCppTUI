@@ -41,7 +41,7 @@ public:
 class Evaluate {
 private:
 	const Parser& parser;
-	std::shared_ptr<std::unordered_map<Parser::Lexeme, Lambda>> mOperatorFunctions;
+	std::unordered_map<Parser::Lexeme, Lambda> mOperatorFunctions;
 
 public:
 	Evaluate(const Parser& parser);
@@ -49,6 +49,7 @@ public:
 	void addOperatorFunction(const Lambda& operatorDefinition);
 	void addOperatorFunction(Lambda&& operatorDefinition);
 	Result<RuntimeTypedExprComponent> evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots) const;
+	const std::unordered_map<Parser::Lexeme, Lambda>& getEvaluationLambdaFunction() const;
 };
 
 #include "evaluation_impl.h"

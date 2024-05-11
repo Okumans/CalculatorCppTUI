@@ -5,6 +5,7 @@
 #include <cassert>
 #include <array>
 #include <sstream>
+#include <algorithm>
 #include <limits>
 
 #include "lexer.h"
@@ -15,6 +16,7 @@
 #define DEBUG
 #include "debug.cpp"
 #include <iomanip>
+#include <thread>
 #include <chrono>
 
 #define BENCHMARK_START auto start = std::chrono::steady_clock::now()
@@ -79,13 +81,73 @@ void test(size_t basicOperationAmount) {
 	BENCHMARK_END;
 }
 
+//static std::vector<size_t> split_list_equally(const std::vector<size_t>& numbers, size_t m) {
+//	size_t n = numbers.size();
+//	if (n == 0) {
+//		return std::vector<size_t>(m, 0);
+//	}
+//
+//	size_t target_sum = 0;
+//	for (size_t num : numbers) {
+//		target_sum += num;
+//	}
+//	target_sum /= m;
+//
+//	size_t remainder = 0;
+//	for (size_t num : numbers) {
+//		remainder += (num % m);
+//	}
+//
+//	std::vector<size_t> sublists_sum(m, 0);
+//	size_t idx = 0;
+//
+//	for (size_t i = 0; i < m; i++) {
+//		size_t curr_sum = 0;
+//		size_t extra_element = (i < remainder);
+//		size_t start_idx = idx;
+//
+//		while (curr_sum < target_sum + extra_element && idx < n) {
+//			curr_sum += numbers[idx];
+//			idx++;
+//		}
+//
+//		sublists_sum[i] = curr_sum;
+//	}
+//
+//	return sublists_sum;
+//}
+//
+//void loadspliter(const Parser& pas, const std::vector<Parser::Lexeme>& load) {
+//	const unsigned int coresAmount = 4;// std::thread::hardware_concurrency();
+//
+//	std::vector<size_t> delimeters = { 0 };
+//	for (size_t i = 0; i < load.size(); i++) {
+//		if (i == load.size()-1 || pas.isOperator(load[i]) && pas.getOperatorLevel(load[i]) == 0) {
+//			size_t temp = delimeters.back(); delimeters.pop_back();
+//			delimeters.emplace_back(i - temp);
+//			delimeters.emplace_back(i);
+//		}
+//	}
+//	delimeters.pop_back();
+//
+//	std::vector<size_t> splitedListSum{ split_list_equally(delimeters, coresAmount) };
+//	std::vector<size_t> positions;
+//	positions.reserve(splitedListSum.size());
+//	positions.emplace_back(0);
+//	for (auto element : splitedListSum) {
+//		positions.emplace_back(positions.back() + element);
+//	}
+//	
+//	std::cout << delimeters << "\n";
+//	std::cout << positions << "\n";
+//}
 
 int main(int argc, char* argv[])
 {
 	NodeFactory::reserve(500);
 
-	 test(1'000'000); //  3.750989 second (best)
-	 return 0;
+	 //test(1'000'000); //  3.750989 second (best)
+	 //return 0;
 
 	Lexer lex;
 	initializeLexer(lex);
@@ -121,6 +183,8 @@ int main(int argc, char* argv[])
 		std::cout << "Lexing: " << ss.str().substr(0, 1000) << "\n";
 
 		auto parsedResult = pas.parseNumbers(lexResult);
+
+		// loadspliter(pas, parsedResult);
 
 		ss.str("");
 		ss.clear();

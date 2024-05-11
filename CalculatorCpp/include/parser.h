@@ -73,6 +73,7 @@ public:
 	
 	bool isOperator(const Lexeme& lexeme) const;
 	OperatorEvalType getOperatorType(const Lexeme& oprLexeme) const;
+	OperatorLevel getOperatorLevel(const Lexeme& oprLexeme) const;
 	std::string printOpertatorTree(NodeFactory::NodePos tree, size_t _level = 0) const;
 
 	std::optional<ParserNotReadyError> parserReady();
