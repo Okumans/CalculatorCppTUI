@@ -69,21 +69,22 @@ protected:
 
 public:
 	virtual std::string toString() const = 0;
+	virtual NodePos generateExpressionTree() const = 0;
+
 	const RuntimeType& getType() const {
 		return mType;
 	}
-	
+
 	NodePos getNodeExpression() const {
+		if (!NodeFactory::validNode(mNodeExpression))
+			_setNodeExpression(generateExpressionTree());
 		return mNodeExpression;
 	}
+	
 
 protected:
 	RuntimeType mType;
-	NodePos mNodeExpression;
-
-	void setNodeExpression(NodePos nodeExpression) {
-		mNodeExpression = nodeExpression;
-	}
+	mutable NodePos mNodeExpression{ NodeFactory::NodePosNull };
 
 	BaseRuntimeTypedExprComponent(const RuntimeType& type, NodePos nodeExpression) :
 		mType{ type },
@@ -92,6 +93,14 @@ protected:
 	BaseRuntimeTypedExprComponent(RuntimeType&& type, NodePos nodeExpression) :
 		mType{ std::move(type) },
 		mNodeExpression{ nodeExpression } {}
+
+	void _setNodeExpression(NodePos nodeExpression) const {
+		mNodeExpression = nodeExpression;
+	}
+
+	NodePos _getNodeExpression() const {
+		return mNodeExpression;
+	}
 
 	friend std::ostream& operator<<(std::ostream& os, BaseRuntimeTypedExprComponent const& brttexc) {
 		os << brttexc.toString();
@@ -107,6 +116,7 @@ class Number : public BaseRuntimeTypedExprComponent {
 public:
 	Number(long double number);
 	static Number fromExpressionNode(NodePos numberNodeExpression);
+	NodePos generateExpressionTree() const override;
 
 	long double getNumber() const;
 	std::string toString() const override;
@@ -116,7 +126,6 @@ public:
 private:
 	long double mNumber;
 	Number(NodePos numberExpression, bool);
-	NodePos generateExpressionTree(long double number) const;
 };
 
 class Lambda : public BaseRuntimeTypedExprComponent {
@@ -146,6 +155,8 @@ public:
 	std::optional<std::string_view> getLambdaSignature() const;
 	LambdaNotation getNotation() const;
 	std::string toString() const override;
+	NodePos generateExpressionTree(const std::string& functionSignature) const;
+	NodePos generateExpressionTree() const override;
 
 private:
 	RuntimeCompoundType::LambdaInfo mLambdaInfo;
@@ -156,7 +167,6 @@ private:
 
 	Lambda(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
 	Lambda(const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
-	NodePos generateExpressionTree(const std::string& functionSignature) const;
 	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 	static Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> _NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 
@@ -191,7 +201,7 @@ private:
 
 	Storage(const RuntimeCompoundType& storageType, const StorageArguments& storageData);
 	Storage(RuntimeCompoundType&& storageType, StorageArguments&& storageData);
-	NodePos generateExpressionTree(const StorageArguments& storageData) const;
+	NodePos generateExpressionTree() const override;
 };
 
 class RuntimeTypedExprComponent : public std::variant<Number, Storage, Lambda> {

@@ -9,7 +9,7 @@
 #include "runtimeTypedExprComponent.h"
 
 inline Lambda::Lambda(const Lambda& other) :
-	BaseRuntimeTypedExprComponent(other.mType, other.mNodeExpression),
+	BaseRuntimeTypedExprComponent(other.getType(), other._getNodeExpression()),
 	mLambdaInfo{ other.mLambdaInfo },
 	mLambdaNotation{ other.mLambdaNotation },
 	mLambdaFunction{ other.mLambdaFunction },
@@ -17,7 +17,8 @@ inline Lambda::Lambda(const Lambda& other) :
 
 inline Lambda& Lambda::operator=(const Lambda& other) {
 	if (this != &other) {
-		mType = other.mType;
+		mType = other.getType();
+		mNodeExpression = other._getNodeExpression();
 		mLambdaNotation = other.mLambdaNotation;
 		mLambdaInfo = other.mLambdaInfo;
 		mLambdaFunction = other.mLambdaFunction;
@@ -38,6 +39,8 @@ inline Lambda::Lambda(Lambda&& other) noexcept :
 
 inline Lambda& Lambda::operator=(Lambda&& other) noexcept {
 	if (this != &other) {
+		mType = std::move(other.mType);
+		mNodeExpression = other._getNodeExpression();
 		mLambdaInfo = std::move(other.mLambdaInfo);
 		mLambdaNotation = other.mLambdaNotation;
 		mLambdaFunction = std::move(other.mLambdaFunction);
@@ -51,7 +54,7 @@ inline Lambda::Lambda(
 	const RuntimeCompoundType& lambdaType,
 	LambdaNotation lambdaNotation,
 	const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction) :
-	BaseRuntimeTypedExprComponent(lambdaType, generateExpressionTree(lambdaFunctionSignature)),
+	BaseRuntimeTypedExprComponent(lambdaType, NodeFactory::NodePosNull),
 	mLambdaInfo{ RuntimeCompoundType::getLambdaInfo(lambdaType) },
 	mLambdaNotation{ lambdaNotation },
 	mLambdaFunction{ std::make_shared<std::function<RuntimeTypedExprComponent(LambdaArguments)>>(lambdaFunction) },
@@ -229,12 +232,15 @@ inline Lambda::LambdaNotation Lambda::getNotation() const {
 
 inline std::string Lambda::toString() const {
 	std::ostringstream ss;
-	ss << mType;
+	ss << getType();
 	return ss.str();
 }
 
-inline NodeFactory::NodePos Lambda::generateExpressionTree(const std::string& functionSignature) const {
-	const NodePos operatorNode{ NodeFactory::create(functionSignature) };
+inline NodeFactory::NodePos Lambda::generateExpressionTree() const {
+	if (!mLambdaFunctionSignature.has_value())
+		return std::get<NodePos>(mLambdaFunction);
+
+	const NodePos operatorNode{ NodeFactory::create(mLambdaFunctionSignature.value()) };
 	NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
 	return operatorNode;
 }

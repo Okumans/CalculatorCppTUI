@@ -146,8 +146,8 @@ int main(int argc, char* argv[])
 {
 	NodeFactory::reserve(500);
 
-	 //test(1'000'000); //  3.750989 second (best)
-	 //return 0;
+	 test(1'000'000); //  2.1 second (best)
+	 return 0;
 
 	Lexer lex;
 	initializeLexer(lex);
