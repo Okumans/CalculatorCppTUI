@@ -101,22 +101,24 @@ const auto summationLambdaFunction = [](const std::unordered_map<Parser::Lexeme,
 		),																										// LambdaType				= Lambda[Number, Storage[Storage[Number, Number], Lambda[Number, Number]]]
 		Lambda::LambdaNotation::Infix,																			// LambdaNotation			= Lambda::LambdaNotation::Infix
 		[&EvaluatorLambdaFunction](const Lambda::LambdaArguments& args) -> RuntimeTypedExprComponent {			// LambdaFunction			= ([0]: Storage[Number, Number], [1]: Lambda[Number, Number]) -> Number
-			size_t start{ static_cast<size_t>(args[0].getStorage()[0].getNumber()) };
-			size_t stop{ static_cast<size_t>(args[0].getStorage()[1].getNumber()) };
+			int64_t start{ static_cast<int64_t>(args[0].getStorage()[0].getNumber()) };
+			int64_t stop{ static_cast<int64_t>(args[0].getStorage()[1].getNumber()) };
 
 			long double summation{ 0 };
 			const Lambda& calcFunction{ args[1].getLambda() };
 			for (; start < stop; start++)
-				summation += calcFunction.evaluate(EvaluatorLambdaFunction, { start }).getValue().getNumber();
+				summation += calcFunction.evaluate(EvaluatorLambdaFunction, static_cast<long double>(start)).getValue().getNumber();
 
 			return Number(summation);
 		}
 	);
 	};
 
-//const Result<Lambda, std::runtime_error> numberStorageIndex = Lambda::fromFunction(
-//	"numindex",
-//	RCT::Lambda(), Number)
+
+
+//const Result<Lambda, std::runtime_error> nStorageLambdaFunction = Lambda::fromFunction(
+//	"nStorage",
+//	RCT::Lambda(, Number)
 //);
 
 

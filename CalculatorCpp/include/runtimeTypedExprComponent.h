@@ -194,6 +194,7 @@ public:
 	const std::vector<RuntimeTypedExprComponent>& getData() const;
 	size_t size() const;
 	std::string toString() const override;
+	NodePos generateExpressionTree() const override;
 
 private:
 	RuntimeCompoundType::StorageInfo mStorageInfo;
@@ -201,8 +202,8 @@ private:
 
 	Storage(const RuntimeCompoundType& storageType, const StorageArguments& storageData);
 	Storage(RuntimeCompoundType&& storageType, StorageArguments&& storageData);
-	NodePos generateExpressionTree() const override;
 };
+
 
 class RuntimeTypedExprComponent : public std::variant<Number, Storage, Lambda> {
 public:

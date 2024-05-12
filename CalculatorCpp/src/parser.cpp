@@ -46,19 +46,21 @@ static bool isNumber(const std::string& lexeme) {
 	if (lexeme.length() >= 3 && (std::isdigit(lexeme[2]) || std::isdigit(lexeme[0])))
 		return true;
 
-	return std::isdigit(lexeme[0]);
+	return std::isdigit(lexeme[lexeme.front() == '-' || lexeme.front() == '.']);
 }
 
 bool Parser::strictedIsNumber(const std::string& lexeme, bool veryStrict) {
 	if (lexeme.empty())
 		return false;
+
 	if (lexeme.length() == 1 && lexeme[0] == '.')
 		return true && !veryStrict;
-	if (lexeme.length() == 2 && (lexeme[0] == '-' && lexeme[1] == '.')
+	
+	if ((lexeme.length() >= 2 && (lexeme[0] == '-' && lexeme[1] == '.') && (std::isdigit(lexeme.back()) || lexeme.length() <= 2))
 		|| ((lexeme[0] == '-' || lexeme[0] == '.') && std::isdigit(lexeme[1])))
-		return true && !veryStrict;
+		return true && !(lexeme.back() == '.' && veryStrict);
 
-	return std::isdigit(lexeme.front()) && (std::isdigit(lexeme.back()) || !veryStrict);
+	return std::isdigit(lexeme[lexeme.front() == '-' || lexeme.front() == '.']) && (std::isdigit(lexeme.back()) || !veryStrict);
 }
 
 static std::string_view trimLeadingZeros(const std::string& str) {
@@ -151,24 +153,26 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes
 		else if (result.empty() && numberBuffer.empty() && lexeme == "-" && !foundMinusSign)
 			foundMinusSign = true;
 
-		// gg debug this code [fucked up counter = 1]
+		// gg debug this code [fucked up counter = 2]
 		else if (!numberBuffer.empty() &&
 			((lexeme == "." && foundDecimalPoint) ||
 				(lexeme == "-" && foundMinusSign) ||
-				(!((!result.empty() &&
-					((mOperatorEvalTypes.contains(result.back()) &&
-						(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
-							mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
-						mBracketsOperators.openBracketsOperators.contains(result.back()))) ||
-					result.empty())) ||
-				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) || // curr is not a number, buffer is a number
-				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) || // curr is a number, buffer is not a number
+				//(!(!result.empty() &&
+				//	((mOperatorEvalTypes.contains(result.back()) &&
+				//		(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
+				//			mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
+				//		mBracketsOperators.openBracketsOperators.contains(result.back())) ||
+				//	result.empty())) ||
 				(std::isdigit(lexeme[0]) && strictedIsNumber(numberBuffer, true)) || // curr is a number, buffer is a "number"
+				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) || // curr is a number, buffer is not a number
+				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) || // curr is not a number, buffer is a number
 				(!std::isdigit(lexeme[0]) && !isNumber(numberBuffer)))) { // curr is not a number, buffer is not a number
 			result.push_back(numberBuffer);
-			foundDecimalPoint = false;
-			foundMinusSign = false;
+			foundMinusSign = (lexeme == "-");
+			foundDecimalPoint = (lexeme == ".");
 			numberBuffer.clear();
+			
+
 		}
 
 		numberBuffer += lexeme;

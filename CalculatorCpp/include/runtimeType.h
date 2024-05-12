@@ -33,6 +33,7 @@ enum class RuntimeBaseType : char {
     Number,  // Numeric type
     _Lambda, // Internal use for representing lambda functions
     _Storage, // Internal use for representing storage types (collections)
+    _RuntimeEvaluate
 };
 
 // Forward declaration for RuntimeCompoundType (used later in RuntimeType)
