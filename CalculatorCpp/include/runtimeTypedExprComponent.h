@@ -16,52 +16,21 @@ class RuntimeTypedExprComponent;
 template <typename T>
 concept RuntimeTypedExprComponentRequired = std::is_convertible_v<T, RuntimeTypedExprComponent>;
 
-// Custom exception class for runtime type errors
-class LambdaConstructionError : public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit LambdaConstructionError(const std::string& message)
-		: std::runtime_error("LambdaConstructionError: " + message) {}
-
-	// Constructor with message and origin information
-	explicit LambdaConstructionError(const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaConstructionError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit LambdaConstructionError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaConstructionError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct LambdaConstructionError {
+	static const std::string prefix;
 };
+inline const std::string LambdaConstructionError::prefix = "LambdaConstructionError";
 
-// Custom exception class for runtime type errors
-class LambdaEvaluationError : public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit LambdaEvaluationError(const std::string& message)
-		: std::runtime_error("LambdaEvaluationError: " + message) {}
-
-	// Constructor with message and origin information
-	explicit LambdaEvaluationError(const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaEvaluationError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit LambdaEvaluationError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaEvaluationError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct LambdaEvaluationError {
+	static const std::string prefix;
 };
+inline const std::string LambdaEvaluationError::prefix = "LambdaEvaluationError";
 
-class StorageEvaluationError : public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit StorageEvaluationError(const std::string& message)
-		: std::runtime_error("StorageEvaluationError: " + message) {}
 
-	// Constructor with message and origin information
-	explicit StorageEvaluationError(const std::string& message, const std::string& from)
-		: std::runtime_error("StorageEvaluationError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit StorageEvaluationError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("StorageEvaluationError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct StorageEvaluationError {
+	static const std::string prefix;
 };
+inline const std::string StorageEvaluationError::prefix = "StorageEvaluationError";
 
 class BaseRuntimeTypedExprComponent {
 protected:
@@ -115,6 +84,7 @@ Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootE
 class Number : public BaseRuntimeTypedExprComponent {
 public:
 	Number(long double number);
+	Number();
 	static Number fromExpressionNode(NodePos numberNodeExpression);
 	NodePos generateExpressionTree() const override;
 

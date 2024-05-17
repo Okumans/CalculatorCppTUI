@@ -70,7 +70,7 @@ void test(size_t basicOperationAmount) {
 			if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
 				std::cout << "Result: " << std::fixed << result.getValue() << ", ";
 			else
-				std::cout << "ERROR: " << result.getException().what() << ", ";
+				std::cout << result.getException().what() << ", ";
 
 			NodeFactory::freeAll();
 		}
@@ -167,8 +167,8 @@ int main(int argc, char* argv[])
 	size_t count{ 0 };
 	while (++count && (argc < 2 || count == 1))
 	{
-		std::cout << "\n## EXPRESSION: " << count << "##\n";
-		std::cout << "Expression = ";
+		//std::cout << "\n## EXPRESSION: " << count << "##\n";
+		std::cout << ColorText<Color::Magenta>("$: ");
 
 		!(argc >= 2) && std::getline(std::cin, input);
 
@@ -177,21 +177,21 @@ int main(int argc, char* argv[])
 
 		auto lexResult = lex.lexing(input);
 
-		std::stringstream ss;
-		ss << lexResult;
+		//std::stringstream ss;
+		//ss << lexResult;
 
-		std::cout << "Lexing: " << ss.str().substr(0, 1000) << "\n";
+		//std::cout << "Lexing: " << HighlightSyntax(ss.str().substr(0, 1000)) << "\n";
 
 		auto parsedResult = pas.parseNumbers(lexResult);
 
 		// loadspliter(pas, parsedResult);
 
-		ss.str("");
-		ss.clear();
+		//ss.str("");
+		//ss.clear();
 
-		ss << parsedResult;
+		//ss << parsedResult;
 
-		std::cout << "Parsing Number: " << ss.str().substr(0, 1000) << "\n";
+		//std::cout << "Parsing Number: " << HighlightSyntax(ss.str().substr(0, 1000)) << "\n";
 
 		getReturnType(NodeFactory::NodePosNull, {}, false); // reset cache
 
@@ -200,18 +200,17 @@ int main(int argc, char* argv[])
 
 			if (!root.isError()) {
 				auto rootResult = root.getValue();
-				const auto &rootVal = rootResult;
-				// std::cout << "Operation Tree: " << pas.printOpertatorTree(rootVal) << "\n";
+				std::cout << ColorText<Color::Yellow>(" ⇒ ") << pas.printOpertatorTree(rootResult, eval.getEvaluationLambdaFunction()) << "\n";
 
-				if (auto result = eval.evaluateExpressionTree(rootVal); !result.isError())
-					std::cout << "Result: " << std::fixed << result.getValue() << "\n";
+				if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
+					std::cout << ColorText<Color::Green>(" ≡ ") << std::fixed << HighlightSyntax(result.getValue().toString()) << "\n";
 				else
-					std::cout << "ERROR: " << result.getException().what() << "\n";
+					std::cout << ColorText<Color::Red>(" (!) ") << HighlightSyntax(result.getException().what()) << "\n";
 
 				NodeFactory::freeAll();
 			}
 			else {
-				std::cout << "ERROR: " << root.getException().what() << "\n";
+				std::cout << ColorText<Color::Red>("(!) ") << HighlightSyntax(root.getException().what()) << "\n";
 			}
 		}
 	}

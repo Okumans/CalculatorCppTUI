@@ -9,29 +9,19 @@
 
 #include "result.h"
 #include "lexer.h"
+#include "runtimeType.h"
 #include "nodeFactory.h"
 
-class ParserNotReadyError : public std::runtime_error {
-public:
-	explicit ParserNotReadyError(const std::string& msg) : std::runtime_error("ParserSyntaxError: " + msg) {}
+struct ParserNotReadyError {
+	static const std::string prefix;
 };
+inline const std::string ParserNotReadyError::prefix = "ParserNotReadyError";
 
-
-// Custom exception class for runtime type errors
-class ParserSyntaxError: public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit ParserSyntaxError(const std::string& message)
-		: std::runtime_error("ParserSyntaxError: " + message) {}
-
-	// Constructor with message and origin information
-	explicit ParserSyntaxError(const std::string& message, const std::string& from)
-		: std::runtime_error("ParserSyntaxError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit ParserSyntaxError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("ParserSyntaxError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct ParserSyntaxError {
+	static const std::string prefix;
 };
+inline const std::string ParserSyntaxError::prefix = "ParserSyntaxError";
+
 
 class Parser {
 public:
@@ -74,9 +64,9 @@ public:
 	bool isOperator(const Lexeme& lexeme) const;
 	OperatorEvalType getOperatorType(const Lexeme& oprLexeme) const;
 	OperatorLevel getOperatorLevel(const Lexeme& oprLexeme) const;
-	std::string printOpertatorTree(NodeFactory::NodePos tree, size_t _level = 0) const;
+	std::string printOpertatorTree(std::vector<NodeFactory::NodePos> trees, const std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunctions) const;
 
-	std::optional<ParserNotReadyError> parserReady();
+	std::optional<RuntimeError<ParserNotReadyError>> parserReady();
 	void _ignore_parserReady();
 private:
 	std::unordered_set<Lexeme> mTempConstant;

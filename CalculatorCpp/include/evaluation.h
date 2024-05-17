@@ -16,27 +16,16 @@
 
 class Parser;
 
-class EvaluationDefinitionError : public std::runtime_error {
-public:
-	explicit EvaluationDefinitionError(const std::string& msg) : std::runtime_error("EvaluationDefinitionError: " + msg) {}
+
+struct EvaluationDefinitionError {
+	static const std::string prefix;
 };
+inline const std::string EvaluationDefinitionError::prefix = "EvaluationDefinitionError";
 
-
-// Custom exception class for runtime type errors
-class EvaluationFailedError : public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit EvaluationFailedError(const std::string& message)
-		: std::runtime_error("EvaluationFailedError: " + message) {}
-
-	// Constructor with message and origin information
-	explicit EvaluationFailedError(const std::string& message, const std::string& from)
-		: std::runtime_error("EvaluationFailedError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit EvaluationFailedError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("EvaluationFailedError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct EvaluationFailedError {
+	static const std::string prefix;
 };
+inline const std::string EvaluationFailedError::prefix = "EvaluationFailedError";
 
 class Evaluate {
 private:

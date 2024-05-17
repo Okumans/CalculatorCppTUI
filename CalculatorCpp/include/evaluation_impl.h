@@ -29,10 +29,10 @@ inline void Evaluate::addOperatorFunction(const Lambda& operatorDefinition) {
 	std::string functionSignature(operatorDefinition.getLambdaSignature().value()); // handle error
 
 	if (!parser.isOperator(functionSignature))
-		throw EvaluationDefinitionError(std::format("The operator {} isn't consist in operators list.", functionSignature));
+		throw RuntimeError<EvaluationDefinitionError>(std::format("The operator {} isn't consist in operators list.", functionSignature));
 
 	if (static_cast<int8_t>(operatorDefinition.getNotation()) != static_cast<int8_t>(parser.getOperatorType(functionSignature)))
-		throw EvaluationDefinitionError(std::format("The operator {} parser OperatorEvalType and Lambda function Notation Type are not the same.", functionSignature));
+		throw RuntimeError<EvaluationDefinitionError>(std::format("The operator {} parser OperatorEvalType and Lambda function Notation Type are not the same.", functionSignature));
 
 	mOperatorFunctions.emplace(functionSignature, operatorDefinition);
 }
@@ -41,10 +41,10 @@ inline void Evaluate::addOperatorFunction(Lambda&& operatorDefinition) {
 	std::string functionSignature(operatorDefinition.getLambdaSignature().value());
 
 	if (!parser.isOperator(functionSignature))
-		throw EvaluationDefinitionError(std::format("The operator {} isn't consist in operators list.", functionSignature));
+		throw RuntimeError<EvaluationDefinitionError>(std::format("The operator {} isn't consist in operators list.", functionSignature));
 
 	if (static_cast<int8_t>(operatorDefinition.getNotation()) != static_cast<int8_t>(parser.getOperatorType(functionSignature)))
-		throw EvaluationDefinitionError(std::format("The operator {} parser OperatorEvalType and Lambda function Notation Type are not the same.", functionSignature));
+		throw RuntimeError<EvaluationDefinitionError>(std::format("The operator {} parser OperatorEvalType and Lambda function Notation Type are not the same.", functionSignature));
 
 	mOperatorFunctions.emplace(functionSignature, std::move(operatorDefinition));
 }
@@ -55,7 +55,7 @@ inline Result<RuntimeTypedExprComponent> Evaluate::evaluateExpressionTree(const 
 	Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> evaluationResult{ Lambda::_NodeExpressionsEvaluator(roots, mOperatorFunctions) };
 	
 	if (evaluationResult.isError())
-		return EvaluationFailedError(
+		return RuntimeError<EvaluationFailedError>(
 			evaluationResult.getException(),
 			std::format(
 				"When trying to evaluate Expression tree. (nodeExpression value = {})",

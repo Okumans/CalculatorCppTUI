@@ -191,7 +191,7 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 	else if (!isCurrentRawString.empty())
 		nonEmptyPushback(temp, buff + rawStringBracketBuff);
 
-	else if (buff.length() && (mKeywordTree.search(buff) || (buff.length() && std::isdigit(buff.at(0)))))
+	else if (buff.length() && (mKeywordTree.search(buff) || std::isdigit(buff.at(0))))
 		temp.push_back(buff);
 
 	return temp;

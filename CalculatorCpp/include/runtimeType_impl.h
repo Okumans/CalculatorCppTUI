@@ -11,6 +11,8 @@
 #include <sstream>
 #include <format>
 #include <memory>
+#include <sstream>
+#include <cassert>
 
 #include "runtimeType.h"
 #include "result.h"
@@ -53,12 +55,12 @@ inline RuntimeCompoundType& RuntimeCompoundType::operator=(RuntimeCompoundType&&
 }
 
 // Create a RuntimeCompoundType with a vector of RuntimeType elements
-inline RuntimeCompoundType RuntimeCompoundType::Storage(const std::vector<RuntimeType>& base) {
+inline RuntimeCompoundType RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(const std::vector<RuntimeType>& base) {
 	return RuntimeCompoundType(RuntimeBaseType::_Storage, base);
 }
 
 // Create a RuntimeCompoundType with a rvalue vector of RuntimeType elements
-inline RuntimeCompoundType RuntimeCompoundType::Storage(std::vector<RuntimeType>&& base) {
+inline RuntimeCompoundType RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::vector<RuntimeType>&& base) {
 	return RuntimeCompoundType(RuntimeBaseType::_Storage, std::move(base));
 }
 
@@ -70,6 +72,18 @@ inline RuntimeCompoundType RuntimeCompoundType::Storage(Args&&... base) {
 	tmp.reserve(count);
 	(tmp.emplace_back(std::move(std::forward<Args>(base))), ...);
 	return RuntimeCompoundType(RuntimeBaseType::_Storage, std::move(tmp));
+}
+
+// Create a RuntimeCompoundType with a vector of RuntimeType elements
+inline RuntimeCompoundType RuntimeCompoundType::Storage(const std::vector<RuntimeType>& base) {
+	for (const RuntimeType& element : base) assert(std::holds_alternative<RuntimeEvaluate>(element));
+	return RuntimeCompoundType(RuntimeBaseType::_Storage, base);
+}
+
+// Create a RuntimeCompoundType with a rvalue vector of RuntimeType elements
+inline RuntimeCompoundType RuntimeCompoundType::Storage(std::vector<RuntimeType>&& base) {
+	for (const RuntimeType& element : base) assert(std::holds_alternative<RuntimeEvaluate>(element));
+	return RuntimeCompoundType(RuntimeBaseType::_Storage, std::move(base));
 }
 
 // Create a RuntimeCompoundType representing a lambda with return type and parameters
@@ -117,18 +131,18 @@ inline Result<RuntimeType, std::runtime_error> RuntimeCompoundType::ParseString(
 			if (std::holds_alternative<char>(operationStack.top()) ||
 				std::holds_alternative<RuntimeCompoundType>(std::get<RuntimeType>(operationStack.top())) ||
 				std::get<RuntimeBaseType>(std::get<RuntimeType>(operationStack.top())) == RuntimeBaseType::Number)
-				return RuntimeTypeError("Holder of RuntimeTypes must be RuntimeBaseType::_Lambda or RuntimeBaseType::_Storage.", "RuntimeCompoundType::ParseString");
+				return RuntimeError<RuntimeTypeError>("Holder of RuntimeTypes must be RuntimeBaseType::_Lambda or RuntimeBaseType::_Storage.", "RuntimeCompoundType::ParseString");
 
 			// Determine the type of the element and create the corresponding RuntimeCompoundType
 			RuntimeBaseType runtimeTypeElementHolder = std::get<RuntimeBaseType>(std::get<RuntimeType>(operationStack.top()));
 			operationStack.pop();
 
 			if (runtimeTypeElementHolder == RuntimeBaseType::_Storage)
-				operationStack.emplace(RuntimeCompoundType::Storage(containRuntimeType));
+				operationStack.emplace(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(containRuntimeType));
 
 			else if (runtimeTypeElementHolder == RuntimeBaseType::_Lambda && containRuntimeType.size() == 2)
 				operationStack.emplace(RuntimeCompoundType::Lambda(containRuntimeType[0], containRuntimeType[1]));
-			else return RuntimeTypeError("RuntimeBaseType::_Lambda can hold only 2 argument (including Return and Params), use Storage if you want to return compoundType.", "RuntimeCompoundType::ParseString");
+			else return RuntimeError<RuntimeTypeError>("RuntimeBaseType::_Lambda can hold only 2 argument (including Return and Params), use Storage if you want to return compoundType.", "RuntimeCompoundType::ParseString");
 		}
 
 		// Handle opening bracket
@@ -148,7 +162,7 @@ inline Result<RuntimeType, std::runtime_error> RuntimeCompoundType::ParseString(
 
 	// Check the final state of the stack
 	if (operationStack.size() != 1 || std::holds_alternative<char>(operationStack.top()))
-		return RuntimeTypeError("Failed to evaluate RuntimeType like string.", "RuntimeCompoundType::ParseString");
+		return RuntimeError<RuntimeTypeError>("Failed to evaluate RuntimeType like string.", "RuntimeCompoundType::ParseString");
 
 	return std::get<RuntimeType>(operationStack.top());
 }
@@ -271,6 +285,33 @@ inline std::ostream& operator<<(std::ostream& os, const RuntimeType& et) {
 	return os;
 }
 
+inline std::string RuntimeTypeToString(const RuntimeType& rt) {
+	std::ostringstream oss;
+	if (const RuntimeBaseType* runtimeBaseType{ std::get_if<RuntimeBaseType>(&rt) }; runtimeBaseType)
+		oss << *runtimeBaseType;
+
+	else if (const RuntimeCompoundType* runtimeCompoundType{ std::get_if<RuntimeCompoundType>(&rt) }; runtimeCompoundType) {
+		switch (runtimeCompoundType->Type) {
+		case RuntimeBaseType::Number:
+			oss << "ERROR_Number"; break;
+		case RuntimeBaseType::_Lambda:
+			oss << "Lambda"; break;
+		case RuntimeBaseType::_Storage:
+			oss << "Storage"; break;
+		}
+
+		oss << "(";
+		for (const auto& child : runtimeCompoundType->Children)
+			oss << child << ", ";
+		oss << "\b\b)";
+	}
+	else {
+		oss << "wtf";
+	}
+
+	return oss.str();
+}
+
 // Output operator for RuntimeCompoundType
 inline std::ostream& operator<<(std::ostream& os, const RuntimeCompoundType& ect) {
 	switch (ect.Type) {
@@ -300,8 +341,10 @@ inline size_t RuntimeCompoundType::generateHash(RuntimeBaseType wrapper, const s
 	for (const auto& child : base) {
 		if (std::holds_alternative<RuntimeCompoundType>(child))
 			hash_combine(seed, std::get<RuntimeCompoundType>(child).mHashed);
-		else
+		else if (std::holds_alternative<RuntimeBaseType>(child))
 			hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeBaseType>(child))));
+		else
+			hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeEvaluate>(child))));
 	}
 	return seed;
 }
@@ -315,8 +358,10 @@ inline size_t RuntimeCompoundType::generateHash(RuntimeBaseType wrapper, const R
 	// Hash the children
 	if (std::holds_alternative<RuntimeCompoundType>(base))
 		hash_combine(seed, std::get<RuntimeCompoundType>(base).mHashed);
-	else
+	else if (std::holds_alternative<RuntimeBaseType>(base))
 		hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeBaseType>(base))));
+	else
+		hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeEvaluate>(base))));
 
 	return seed;
 }

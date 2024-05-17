@@ -9,42 +9,49 @@
 #include <stdexcept>
 #include <cassert>
 #include <memory>
+#include <format>
+#include "colorText.h"
 
 #include "result.h"
 
-// Custom exception class for runtime type errors
-class RuntimeTypeError : public std::runtime_error {
+template<typename ErrorType>
+class RuntimeError : public std::runtime_error {
 public:
-    // Constructor with a single message
-    explicit RuntimeTypeError(const std::string& message)
-        : std::runtime_error("RuntimeTypeError: " + message) {}
+    explicit RuntimeError(const std::string& message)
+        : std::runtime_error(HighlightSyntax(std::format("{}: {}", ColorText<Color::Red>(ErrorType::prefix), message))) {}
 
-    // Constructor with message and origin information
-    explicit RuntimeTypeError(const std::string& message, const std::string& from)
-        : std::runtime_error("RuntimeTypeError: " + message + " (from: " + from + ")") {}
+    explicit RuntimeError(const std::string& message, const std::string& from)
+        : std::runtime_error(HighlightSyntax(std::format("{}: {} [{}]", ColorText<Color::Red>(ErrorType::prefix), message, ColorText<Color::Magenta>(from)))) {}
 
-    // Constructor with chained error, message, and origin information
-    explicit RuntimeTypeError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-        : std::runtime_error("RuntimeTypeError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+    explicit RuntimeError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
+        : std::runtime_error(HighlightSyntax(std::format("{}: {} [{}]\n {} chained from {}", ColorText<Color::Red>(ErrorType::prefix), message, ColorText<Color::Magenta>(from), ColorText<Color::Yellow>("|-"), baseError.what()))) {}
 };
 
+struct RuntimeTypeError {
+    static const std::string prefix;
+};
+inline const std::string RuntimeTypeError::prefix = "RuntimeTypeError";
+
 // Enum representing the base types that can be stored in RuntimeTypedExprComponent
-enum class RuntimeBaseType : char {
+enum class RuntimeBaseType : int8_t {
     Number,  // Numeric type
     _Lambda, // Internal use for representing lambda functions
     _Storage, // Internal use for representing storage types (collections)
-    _RuntimeEvaluate
+};
+
+enum class RuntimeEvaluate : int8_t {
+    RuntimeEvaluate
 };
 
 // Forward declaration for RuntimeCompoundType (used later in RuntimeType)
 class RuntimeCompoundType;
 
 // Type alias for RuntimeType using std::variant for multiple data types
-using RuntimeType = std::variant<RuntimeBaseType, RuntimeCompoundType>;
+using RuntimeType = std::variant<RuntimeBaseType, RuntimeCompoundType, RuntimeEvaluate>;
 
 // Concept to ensure types used with RuntimeType are compatible
 template <typename T>
-concept RuntimeTypeRequired = std::same_as<T, RuntimeCompoundType> || std::same_as<T, RuntimeBaseType> || std::same_as<T, RuntimeType>;
+concept RuntimeTypeRequired = std::same_as<T, RuntimeCompoundType> || std::same_as<T, RuntimeBaseType>;
 
 // Class representing a compound type (storage or lambda)
 class RuntimeCompoundType {
@@ -89,6 +96,8 @@ public:
     // * Lambda - Creates a lambda type with return and parameter types
     // * ParseString - Parses a string representation into a RuntimeType
 
+    static RuntimeCompoundType gurantreeNoRuntimeEvaluateStorage(const std::vector<RuntimeType>& base);
+    static RuntimeCompoundType gurantreeNoRuntimeEvaluateStorage(std::vector<RuntimeType>&& base);
     template <RuntimeTypeRequired... Args>
     static RuntimeCompoundType Storage(Args&&... base);
     static RuntimeCompoundType Storage(const std::vector<RuntimeType>& base);
@@ -149,6 +158,8 @@ private:
         Type{ wrapper },
         Children{ {std::move(base)} } {}
 };
+
+std::string RuntimeTypeToString(const RuntimeType& rt);
 
 template <typename T>
 void hash_combine(size_t& seed, const T& v);

@@ -34,7 +34,11 @@ const std::vector<std::string> mainKeywords{
 	//"pi",
 	//"setmem",
 	//"readmem",
-	"summation",
+	"sum",
+	"sigma",
+	"index",
+	"@",
+	":="
 };
 
 static std::vector<std::pair<std::string, std::string>> splitIntoPairs(const std::vector<std::string>& vec) {
@@ -103,14 +107,14 @@ void initializeParser(Parser& parser) {
 	};
 
 	const std::vector<std::pair<Parser::Lexeme, Parser::OperatorLevel>> mainOperatorLevels{
-		{"+", 0},
-		{"-", 0},
-		{"*", 1},
-		{"/", 1},
+		{"+", 1},
+		{"-", 1},
+		{"*", 2},
+		{"/", 2},
 		//{"//", 1},
 		//{"!", 9},
 		//{"~", 9},
-		{"^", 2},
+		{"^", 3},
 		{"sqrt", 9},
 		//{"abs", 9},
 		//{"k", 9},
@@ -120,7 +124,11 @@ void initializeParser(Parser& parser) {
 		//{"pi", 9},
 		//{"readmem", 9},
 		//{"setmem", 9},
-		{"summation", 9},
+		{"sum", 9},
+		{"sigma", 9},
+		{"index", 9},
+		{":=", 0},
+		{"@", 9},
 	};
 
 	using EvalType = Parser::OperatorEvalType;
@@ -142,7 +150,11 @@ void initializeParser(Parser& parser) {
 		//{"pi", EvalType::Constant},
 		//{"readmem", EvalType::Postfix},
 		//{"setmem", EvalType::Infix},
-		{"summation", EvalType::Infix},
+		{"sigma", EvalType::Infix},
+		{"sum", EvalType::Postfix},
+		{"index", EvalType::Postfix},
+		{":=", EvalType::Infix},
+		{"@", EvalType::Postfix},
 	};
 
 	parser.setBracketOperators(mainBracketPairs);

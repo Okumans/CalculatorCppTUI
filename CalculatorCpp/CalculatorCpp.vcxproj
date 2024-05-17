@@ -85,10 +85,12 @@
     <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)</OutDir>
     <IntDir>$(SolutionDir)bin\intermediates\$(Platform)\$(Configuration)\</IntDir>
     <PublicIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;$(PublicIncludeDirectories)</PublicIncludeDirectories>
+    <ExternalIncludePath>C:\general\boost_1_85_0;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <PublicIncludeDirectories>$(ProjectDir)include;$(ProjectDir)src;$(PublicIncludeDirectories)</PublicIncludeDirectories>
+    <ExternalIncludePath>C:\general\boost_1_85_0;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -169,6 +171,7 @@
     <ClCompile Include="src\trieTree.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\colorText.h" />
     <ClInclude Include="include\evaluation.h" />
     <ClInclude Include="include\initialization.h" />
     <ClInclude Include="include\initialization_impl.h" />

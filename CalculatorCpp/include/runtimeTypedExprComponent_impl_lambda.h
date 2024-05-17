@@ -91,7 +91,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromFunction(
 		(lambdaType.Type != RuntimeBaseType::_Lambda ||
 			std::get_if<RuntimeCompoundType>(&lambdaType.Children[1])->Type != RuntimeBaseType::_Storage ||
 			RuntimeCompoundType::_getLambdaParamsNumbers(lambdaType) != 2))
-		return RuntimeTypeError(std::format("Lambda Infix LambdaNotation must be a Storage with 2 argument. (cannot be \"{}\")", RuntimeType(lambdaType)), "Lambda::fromFunction");
+		return RuntimeError<RuntimeTypeError>(std::format("Lambda Infix LambdaNotation must be a Storage with 2 argument. (cannot be \"{}\")", RuntimeType(lambdaType)), "Lambda::fromFunction");
 	return Lambda(lambdaFunctionSignature, lambdaType, lambdaNotation, lambdaFunction);
 }
 
@@ -107,7 +107,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromFunction(
 		(lambdaType.Type != RuntimeBaseType::_Lambda ||
 			std::get_if<RuntimeCompoundType>(&lambdaType.Children[1])->Type != RuntimeBaseType::_Storage ||
 			RuntimeCompoundType::_getLambdaParamsNumbers(lambdaType) != 2))
-		return RuntimeTypeError(std::format("Lambda Infix LambdaNotation must be a Storage with 2 argument. (cannot be \"{}\")", RuntimeType(lambdaType)), "Lambda::fromFunction");
+		return RuntimeError<RuntimeTypeError>(std::format("Lambda Infix LambdaNotation must be a Storage with 2 argument. (cannot be \"{}\")", RuntimeType(lambdaType)), "Lambda::fromFunction");
 
 	const RuntimeType lambdaReturnType{ RuntimeCompoundType::_getLambdaReturnType(lambdaType) };
 	size_t lambdaParamsNumbers{ RuntimeCompoundType::_getLambdaParamsNumbers(lambdaType) };
@@ -119,8 +119,8 @@ inline Result<Lambda, std::runtime_error> Lambda::fromFunction(
 
 			if (returnType == lambdaReturnType)
 				return Lambda(lambdaFunctionSignature, lambdaType, lambdaNotation, lambdaFunction);
-			return RuntimeTypeError(
-				std::format("Cannot construct Lambda, Parameter type not matched. ({}!={}))",
+			return RuntimeError<RuntimeTypeError>(
+				std::format("Cannot construct Lambda, Parameter type not matched. ({} != {}))",
 					lambdaReturnType,
 					returnType
 				),
@@ -128,15 +128,15 @@ inline Result<Lambda, std::runtime_error> Lambda::fromFunction(
 			);
 		}
 		catch (const std::exception& e) {
-			return LambdaEvaluationError(
+			return RuntimeError<LambdaEvaluationError>(
 				std::format("The lambda evaluation caused an exception \"{}\" during construction.", e.what()),
 				"Lambda::fromFunction::mLambdaFunction");
 		}
 	}
 
 	else
-		return RuntimeTypeError(
-			std::format("Cannot construct Lambda, Parameter amount not matched. ({}!={})",
+		return RuntimeError<RuntimeTypeError>(
+			std::format("Cannot construct Lambda, Parameter amount not matched. ({} != {})",
 				lambdaParamsNumbers, testArgument.size()),
 			"Lambda::fromFunction"
 		);
@@ -147,14 +147,14 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 	const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions)
 {
 	if (!NodeFactory::validNode(lambdaFunctionRootNode))
-		return RuntimeTypeError("The conversion from NodeExpression to Lambda failed due to an invalid NodeExpression.",
+		return RuntimeError<RuntimeTypeError>("The conversion from NodeExpression to Lambda failed due to an invalid NodeExpression.",
 			"Lambda::fromExpressionNode");
 
 	if (NodeFactory::node(lambdaFunctionRootNode).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
 		Result<RuntimeType, std::runtime_error>&& returnTypeRaw{ getReturnType(lambdaFunctionRootNode, EvaluatorLambdaFunctions) };
 
 		if (returnTypeRaw.isError())
-			return RuntimeTypeError(
+			return RuntimeError<RuntimeTypeError>(
 				returnTypeRaw.getException(),
 				std::format("While determining type of lambdaFunctionRootNode \"{}\"",
 					NodeFactory::node(lambdaFunctionRootNode).value),
@@ -176,12 +176,12 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 		if (EvaluatorLambdaFunctions.contains(NodeFactory::node(lambdaFunctionRootNode).value))
 			return EvaluatorLambdaFunctions.at(NodeFactory::node(lambdaFunctionRootNode).value);
 
-		return LambdaConstructionError(
+		return RuntimeError<LambdaConstructionError>(
 			std::format("The LambdaSignature \"{}\" not found in EvaluatorLambdaFunctions",
 				NodeFactory::node(lambdaFunctionRootNode).value),
 			"Lambda::fromExpressionNode");
 	}
-	return LambdaConstructionError(
+	return RuntimeError<LambdaConstructionError>(
 		std::format(R"(NodeExpression NodeState should be LambdaFunction("1") or Operator("3") not "{}" (as a number))",
 			static_cast<int>(NodeFactory::node(lambdaFunctionRootNode).nodestate)),
 		"Lambda::fromExpressionNode");
@@ -267,7 +267,7 @@ static void findAndReplaceConstant(NodeFactory::NodePos root, const std::unorder
 
 inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const LambdaArguments& arguments) const {
 	if (arguments.size() != mLambdaInfo.ParamsNumbers)
-		return RuntimeTypeError(
+		return RuntimeError<RuntimeTypeError>(
 			std::format(
 				"Lambda parameter and argument amount not matched. ({} != {})",
 				mLambdaInfo.ParamsNumbers,
@@ -278,7 +278,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 
 	if (arguments.size() == 1) {
 		if (*mLambdaInfo.ParamsType != arguments[0].getDetailTypeHold())
-			return RuntimeTypeError(
+			return RuntimeError<RuntimeTypeError>(
 				std::format(
 					"Lambda parameter and argument type not matched ({} != {}).",
 					*mLambdaInfo.ParamsType,
@@ -289,7 +289,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 	}
 
 	else if (mLambdaInfo.ParamsNumbers && !_fastCheckRuntimeTypeArgumentsType(*mLambdaInfo.ParamsType, arguments))
-		return RuntimeTypeError(
+		return RuntimeError<RuntimeTypeError>(
 			std::format(
 				"Lambda parameter and argument type not matched ({} != {}).",
 				*mLambdaInfo.ParamsType,
@@ -303,7 +303,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 			return (*std::get<std::shared_ptr<std::function<RuntimeTypedExprComponent(LambdaArguments)>>>(mLambdaFunction))(arguments);
 		}
 		catch (const std::exception& e) {
-			return LambdaEvaluationError(
+			return RuntimeError<LambdaEvaluationError>(
 				std::format("The lambda evaluation caused an exception \"{}\" during runtime.", e.what()),
 				"Lambda::evaluate");
 		}
@@ -336,7 +336,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 		};
 
 		if (tempFunc.isError())
-			return LambdaConstructionError(
+			return RuntimeError<LambdaConstructionError>(
 				tempFunc.getException(),
 				std::format(
 					"When attempting to create a constant lambda function \"{}\", which is used for determine lambda function evaluation result .",
@@ -363,7 +363,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 	};
 
 	if (res.isError())
-		return LambdaEvaluationError(
+		return RuntimeError<LambdaEvaluationError>(
 			res.getException(),
 			std::format(
 				"When attempting to evaluate lambda function on node \"{}\" (value={})",
@@ -396,7 +396,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 		if (NodeFactory::node(currNode).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
 			Result<Lambda, std::runtime_error> lambdaFunctionResult{ Lambda::fromExpressionNode(currNode, EvaluatorLambdaFunctions) };
 			if (lambdaFunctionResult.isError())
-				return LambdaEvaluationError(
+				return RuntimeError<LambdaEvaluationError>(
 					lambdaFunctionResult.getException(),
 					std::format(
 						"When attempting to convert a NodeExpression into a lambda function for evaluation. (nodeExpression value = {})",
@@ -414,7 +414,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 				Storage::fromExpressionNode(currNode, EvaluatorLambdaFunctions) };
 
 			if (storageResult.isError())
-				return StorageEvaluationError(
+				return RuntimeError<StorageEvaluationError>(
 					storageResult.getException(),
 					std::format(
 						"When attempting to convert a NodeExpression into a storage for evaluation. (nodeExpression value = {})",
@@ -429,7 +429,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 				};
 
 				if (evalutationResult.isError())
-					return LambdaEvaluationError(
+					return RuntimeError<LambdaEvaluationError>(
 						evalutationResult.getException(),
 						std::format(
 							R"(When evaluating the lambda function "{}" with the argument "{}".)",
@@ -450,7 +450,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 
 		Result<RuntimeTypedExprComponent, std::runtime_error> evaluationResult{ _NodeExpressionEvaluate(currNode, EvaluatorLambdaFunctions) };
 		if (evaluationResult.isError())
-			return LambdaEvaluationError(
+			return RuntimeError<LambdaEvaluationError>(
 				evaluationResult.getException(),
 				std::format(
 					"When attempting to evaluate the NodeExpression. (nodeExpression value = {})",
@@ -500,7 +500,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				currNode = &NodeFactory::node(currNodePos); // update currNode, evaluate can change currNode address.
 
 				if (constOperatorResult.isError())
-					return LambdaEvaluationError(
+					return RuntimeError<LambdaEvaluationError>(
 						constOperatorResult.getException(),
 						std::format(
 							"When attempting to evaluate the constant lambda function with leaf node constant operator evaluation. (constant operator nodeExpression value = {})",
@@ -528,7 +528,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				};
 
 				if (lambdaFunctionResult.isError())
-					return LambdaEvaluationError(
+					return RuntimeError<LambdaEvaluationError>(
 						lambdaFunctionResult.getException(),
 						std::format(
 							"When attempting to convert a NodeExpression into a lambda function for evaluation. (nodeExpression value = {})",
@@ -552,7 +552,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				};
 
 				if (leftVal.isError())
-					return LambdaEvaluationError(
+					return RuntimeError<LambdaEvaluationError>(
 						leftVal.getException(),
 						std::format(
 							"When attempting to evaluate expession content of a lambda function. (value = {})",
@@ -580,7 +580,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				};
 
 				if (result.isError())
-					return StorageEvaluationError(
+					return RuntimeError<StorageEvaluationError>(
 						result.getException(),
 						std::format(
 							"When attempting to evaluate an argument. (value = {})",
@@ -624,12 +624,12 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 
 			if (!((*parametersType)[0] == leftVal.getDetailTypeHold() &&
 				(*parametersType)[1] == rightVal.getDetailTypeHold()))
-				return RuntimeTypeError(
+				return RuntimeError<RuntimeTypeError>(
 					std::format(
-						"Parameters type must be equal to argument type. ({}!={})",
+						"Parameters type must be equal to argument type. ({} != {})",
 						*lambdaFunction.getLambdaInfo().ParamsType,
 						RuntimeType(
-							RuntimeCompoundType::Storage({
+							RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({
 								leftVal.getDetailTypeHold(),
 								rightVal.getDetailTypeHold()
 								})
@@ -643,7 +643,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			};
 
 			if (infixOperatorResult.isError())
-				return LambdaEvaluationError(
+				return RuntimeError<LambdaEvaluationError>(
 					infixOperatorResult.getException(),
 					std::format(
 						"When attempting to evaluate the infix lambda function. (left nodeExpression value = {}, right nodeExpression value = {})",
@@ -666,9 +666,9 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			RuntimeTypedExprComponent&& rightVal{ std::move(resultMap[currNode->rightPos].value()) };
 			const Lambda& lambdaFunction = EvaluatorLambdaFunctions.at(currNode->value);
 			if (*lambdaFunction.getLambdaInfo().ParamsType != rightVal.getDetailTypeHold())
-				return RuntimeTypeError(
+				return RuntimeError<RuntimeTypeError>(
 					std::format(
-						"Parameters type must be equal to argument type. ({}!={})",
+						"Parameters type must be equal to argument type. ({} != {})",
 						*lambdaFunction.getLambdaInfo().ParamsType,
 						rightVal.getDetailTypeHold()
 					),
@@ -680,7 +680,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			};
 
 			if (postfixOperatorResult.isError())
-				return LambdaEvaluationError(
+				return RuntimeError<LambdaEvaluationError>(
 					postfixOperatorResult.getException(),
 					std::format(
 						"When attempting to evaluate the postfix lambda function. (right nodeExpression value = {})",
@@ -702,9 +702,9 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			RuntimeTypedExprComponent&& leftVal{ std::move(resultMap[currNode->leftPos].value()) };
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode->value) };
 			if (*lambdaFunction.getLambdaInfo().ParamsType != leftVal.getDetailTypeHold())
-				return RuntimeTypeError(
+				return RuntimeError<RuntimeTypeError>(
 					std::format(
-						"Parameters type must be equal to argument type. ({}!={})",
+						"Parameters type must be equal to argument type. ({} != {})",
 						*lambdaFunction.getLambdaInfo().ParamsType,
 						leftVal.getDetailTypeHold()
 					)
@@ -715,7 +715,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			};
 
 			if (prefixOperatorResult.isError())
-				return LambdaEvaluationError(
+				return RuntimeError<LambdaEvaluationError>(
 					prefixOperatorResult.getException(),
 					std::format(
 						"When attempting to evaluate the prefix lambda function. (left nodeExpression value = {})",

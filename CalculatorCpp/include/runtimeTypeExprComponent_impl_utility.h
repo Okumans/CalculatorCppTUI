@@ -121,7 +121,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprCom
 	{
 		Result result = Lambda::fromExpressionNode(rootNodeExpression, EvaluatorLambdaFunctions);
 		if (result.isError())
-			return RuntimeTypeError(
+			return RuntimeError<RuntimeTypeError>(
 				result.getException(),
 				std::format("When trying to convert nodeExpression (value=\"{}\") to LambdaFunction.",
 					NodeFactory::node(rootNodeExpression).value),
@@ -134,7 +134,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprCom
 	{
 		Result result = Lambda::fromExpressionNode(rootNodeExpression, EvaluatorLambdaFunctions);
 		if (result.isError())
-			return RuntimeTypeError(
+			return RuntimeError<RuntimeTypeError>(
 				result.getException(),
 				std::format(
 					"When trying to convert nodeExpression (value=\"{}\") to Operator.",
@@ -152,7 +152,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprCom
 	{
 		Result result = Storage::fromExpressionNode(rootNodeExpression, EvaluatorLambdaFunctions);
 		if (result.isError())
-			return RuntimeTypeError(
+			return RuntimeError<RuntimeTypeError>(
 				result.getException(),
 				std::format(
 					"When trying to convert nodeExpression (value=\"{}\") to Storage.",
@@ -164,7 +164,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprCom
 		return RuntimeTypedExprComponent(result.getValue());
 	}
 	}
-	return RuntimeTypeError(
+	return RuntimeError<RuntimeTypeError>(
 		"The conversion from nodeExpression to LambdaFunction failed due to an invalid nodeState.",
 		"RuntimeTypedExprComponent::fromNodeExpression");
 }
@@ -270,7 +270,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 				) };
 
 				if (tempFunc.isError())
-					return LambdaConstructionError(
+					return RuntimeError<LambdaConstructionError>(
 						tempFunc.getException(),
 						std::format(
 							"When attempting to create a constant lambda function \"{}\", which is used to assist in defining the return type",
@@ -289,7 +289,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 
 				// Handle error occur from determining argument type
 				if (result.isError())
-					return RuntimeTypeError(
+					return RuntimeError<RuntimeTypeError>(
 						result.getException(),
 						std::format(
 							"While determining argument type of \"{}\"",
@@ -306,9 +306,9 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 					returnTypes.pop_back();
 
 					if (RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(returnTypes.back())) != result.getValue())
-						return RuntimeTypeError(
+						return RuntimeError<RuntimeTypeError>(
 							std::format(
-								"parameters type must be same as argument type! ({}!={})",
+								"parameters type must be same as argument type! ({} != {})",
 								RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(returnTypes.back())),
 								result.getValue()),
 							"getReturnType"
@@ -326,7 +326,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 			else if (lambdaParameterType.size() == 1)
 				resultMap[currNodePos] = RuntimeCompoundType::Lambda(std::move(returnTypes.back()), std::move(lambdaParameterType.front()));
 			else
-				resultMap[currNodePos] = RuntimeCompoundType::Lambda(std::move(returnTypes.back()), RuntimeCompoundType::Storage(std::move(lambdaParameterType)));
+				resultMap[currNodePos] = RuntimeCompoundType::Lambda(std::move(returnTypes.back()), RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(lambdaParameterType)));
 		}
 
 		else if (currNode.nodestate == NodeFactory::Node::NodeState::Storage) {
@@ -337,7 +337,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 				Result<RuntimeType, std::runtime_error> result{ getReturnType(NodeFactory::node(currArgNodePos).leftPos, EvaluatorLambdaFunctions) };
 
 				if (result.isError())
-					return RuntimeTypeError(
+					return RuntimeError<RuntimeTypeError>(
 						result.getException(),
 						std::format("While determining argument type of \"{}\"",
 							NodeFactory::validNode(NodeFactory::node(currArgNodePos).leftPos)
@@ -349,7 +349,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 				currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
 			}
 
-			resultMap[currNodePos] = RuntimeCompoundType::Storage(arguments);
+			resultMap[currNodePos] = RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(arguments);
 		}
 
 		else if (EvaluatorLambdaFunctions.contains(currNode.value) && EvaluatorLambdaFunctions.at(currNode.value).getNotation() == Lambda::LambdaNotation::Infix) {
@@ -371,10 +371,10 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 			if (const auto& parametersType{ RuntimeCompoundType::getStorageInfo(*lambdaFunction.getLambdaInfo().ParamsType).Storage };
 				!((*parametersType)[0] == leftType && (*parametersType)[1] == rightType))
 
-				return RuntimeTypeError(
-					std::format("Parameters type must be equal to argument type. ({}!={})",
+				return RuntimeError<RuntimeTypeError>(
+					std::format("Parameters type must be equal to argument type. ({} != {})",
 						*lambdaFunction.getLambdaInfo().ParamsType,
-						RuntimeType(RuntimeCompoundType::Storage({ leftType, rightType }))),
+						RuntimeType(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({ leftType, rightType }))),
 					"getReturnType");
 
 			resultMap[currNodePos] = *lambdaFunction.getLambdaInfo().ReturnType;
@@ -389,8 +389,8 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 			RuntimeType rightVal{ resultMap[currNode.rightPos] };
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode.value) };
 			if (*lambdaFunction.getLambdaInfo().ParamsType != rightVal)
-				return RuntimeTypeError(
-					std::format("Parameters type must be equal to argument type. ({}!={})",
+				return RuntimeError<RuntimeTypeError>(
+					std::format("Parameters type must be equal to argument type. ({} != {})",
 						*lambdaFunction.getLambdaInfo().ParamsType,
 						rightVal),
 					"getReturnType");
@@ -407,8 +407,8 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 			RuntimeType leftVal{ resultMap[currNode.leftPos] };
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode.value) };
 			if (*lambdaFunction.getLambdaInfo().ParamsType == leftVal)
-				return RuntimeTypeError(
-					std::format("Parameters type must be equal to argument type. ({}!={})",
+				return RuntimeError<RuntimeTypeError>(
+					std::format("Parameters type must be equal to argument type. ({} != {})",
 						*lambdaFunction.getLambdaInfo().ParamsType,
 						leftVal),
 					"getReturnType");

@@ -62,7 +62,7 @@ inline Result<Storage, std::runtime_error> Storage::fromVector(const RuntimeComp
 			}, storageArg);
 	}
 
-	if (RuntimeCompoundType::Storage(std::move(storageDataTypes)) != storageType)
+	if (RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)) != storageType)
 		return std::runtime_error("Storage argument type and storage configured type not matched.");
 
 	return Storage(storageType, storageData);
@@ -83,7 +83,7 @@ inline Storage Storage::fromVector(const StorageArguments& storageData) {
 			}, storageArg);
 	}
 
-	return Storage(RuntimeCompoundType::Storage(storageDataTypes), storageData);
+	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(storageDataTypes), storageData);
 }
 
 inline Storage Storage::fromVector(StorageArguments&& storageData) {
@@ -101,11 +101,11 @@ inline Storage Storage::fromVector(StorageArguments&& storageData) {
 			}, storageArg);
 	}
 
-	return Storage(RuntimeCompoundType::Storage(std::move(storageDataTypes)), std::move(storageData));
+	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)), std::move(storageData));
 }
 
 inline Storage Storage::NullStorage() {
-	return Storage(RuntimeCompoundType::Storage({}), {});
+	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({}), {});
 }
 
 template <RuntimeTypedExprComponentRequired ...Args>
@@ -152,7 +152,7 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 	Result<StorageArguments, std::runtime_error> argumentsResult{ Lambda::_NodeExpressionsEvaluator(argumentNodeExpressions, EvaluatorLambdaFunctions) };
 
 	if (argumentsResult.isError())
-		return StorageEvaluationError(
+		return RuntimeError<StorageEvaluationError>(
 			argumentsResult.getException(),
 			"When trying to evalute arguments of Storage",
 			"Storage::fromExpressionNode"
