@@ -20,6 +20,7 @@
 #include "lexer.h"
 #include "runtimeType.h"
 #include "runtimeTypedExprComponent.h"
+#include "runtime_error.h"
 
 #define DEBUG
 #include "debug.cpp"

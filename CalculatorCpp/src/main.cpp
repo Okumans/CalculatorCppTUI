@@ -45,7 +45,7 @@ void test(size_t basicOperationAmount) {
 	std::vector<Parser::Lexeme> lexResult;
 	{
 		BENCHMARK_START;
-		lexResult = lex.lexing(buffer);
+		lexResult = lex.lexing(buffer).getValue();
 		BENCHMARK_END;
 	}
 
@@ -175,14 +175,19 @@ int main(int argc, char* argv[])
 		if (input == "quit")
 			return 0;
 
-		auto lexResult = lex.lexing(input);
+		auto lexResult = lex.lexing(input, true);
+
+		if (lexResult.isError()) {	
+			std::cout << lexResult.getException().what() << "\n\n";
+			continue;
+		}
 
 		//std::stringstream ss;
 		//ss << lexResult;
 
 		//std::cout << "Lexing: " << HighlightSyntax(ss.str().substr(0, 1000)) << "\n";
 
-		auto parsedResult = pas.parseNumbers(lexResult);
+		auto parsedResult = pas.parseNumbers(lexResult.getValue());
 
 		// loadspliter(pas, parsedResult);
 
@@ -198,8 +203,7 @@ int main(int argc, char* argv[])
 		if (!pas.parserReady().has_value()) {
 			auto root = pas.createOperatorTree(parsedResult);
 
-			if (!root.isError()) {
-				auto rootResult = root.getValue();
+			if (auto rootResult = root.getValue(); !root.isError()) {
 				std::cout << ColorText<Color::Yellow>(" ⇒ ") << pas.printOpertatorTree(rootResult, eval.getEvaluationLambdaFunction()) << "\n";
 
 				if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
@@ -213,6 +217,8 @@ int main(int argc, char* argv[])
 				std::cout << ColorText<Color::Red>("(!) ") << HighlightSyntax(root.getException().what()) << "\n";
 			}
 		}
+
+		std::cout << std::endl;
 	}
 
 	return 0;

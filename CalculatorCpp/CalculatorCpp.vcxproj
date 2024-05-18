@@ -272,6 +272,7 @@
     <ClInclude Include="include\runtimeTypedExprComponent_impl_storage.h" />
     <ClInclude Include="include\runtimeTypeExprComponent_impl_utility.h" />
     <ClInclude Include="include\runtimeType_impl.h" />
+    <ClInclude Include="include\runtime_error.h" />
     <ClInclude Include="include\trieTree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

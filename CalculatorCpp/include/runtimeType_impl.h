@@ -14,6 +14,7 @@
 #include <sstream>
 #include <cassert>
 
+#include "runtime_error.h"
 #include "runtimeType.h"
 #include "result.h"
 #include "lexer.h"
@@ -109,7 +110,7 @@ inline Result<RuntimeType, std::runtime_error> RuntimeCompoundType::ParseString(
 		lex.setKeywords({ "Number", "Storage", "Lambda", "[", "]" });
 
 	// Tokenize the input string using the lexer
-	std::vector<std::string> lexemes = lex.lexing(stringLikeType);
+	std::vector<std::string> lexemes = lex.lexing(stringLikeType).getValue();
 	std::stack<std::variant<char, RuntimeType>> operationStack;
 
 	// Process each lexeme

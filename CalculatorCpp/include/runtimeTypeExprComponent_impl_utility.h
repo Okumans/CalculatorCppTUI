@@ -209,7 +209,7 @@ inline bool _fastCheckRuntimeTypeArgumentsType(const RuntimeType& baseType, cons
 inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, bool useCache) {
 	static std::unordered_map<NodeFactory::NodePos, RuntimeType> nodeTypeCache;
 
-	if (!useCache)
+	if (!useCache) // reset cache
 		nodeTypeCache.clear();
 
 	if (useCache && nodeTypeCache.contains(rootExpressionNode))

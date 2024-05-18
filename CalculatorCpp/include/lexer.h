@@ -6,6 +6,7 @@
 #include <tuple>
 #include <unordered_set>
 #include "trieTree.h"
+#include "result.h"
 
 struct Brackets {
 	std::unordered_map<std::string, std::string> openBracketsOperators;
@@ -20,6 +21,11 @@ struct Brackets {
 
 	Brackets() = default;
 };
+
+struct LexingError {
+	static const std::string prefix;
+};
+inline const std::string LexingError::prefix = "LexingError";
 
 class Lexer
 {
@@ -44,7 +50,7 @@ public:
 		const std::unordered_set<char>& separatorKeys,
 		const Brackets& rawStringBracket,
 		const std::string& currContent);
-	std::vector<std::string> lexing(const std::string& currContent) const;
+	Result<std::vector<std::string>, std::runtime_error> lexing(const std::string& currContent, bool throwError = false) const;
 
 	void _addKeyword_not_reinitializeKeyWordTree(const std::string& keyword);
 	void _reinitializeKeyWordTree();

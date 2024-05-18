@@ -11,21 +11,7 @@
 #include <memory>
 #include <format>
 #include "colorText.h"
-
 #include "result.h"
-
-template<typename ErrorType>
-class RuntimeError : public std::runtime_error {
-public:
-    explicit RuntimeError(const std::string& message)
-        : std::runtime_error(HighlightSyntax(std::format("{}: {}", ColorText<Color::Red>(ErrorType::prefix), message))) {}
-
-    explicit RuntimeError(const std::string& message, const std::string& from)
-        : std::runtime_error(HighlightSyntax(std::format("{}: {} [{}]", ColorText<Color::Red>(ErrorType::prefix), message, ColorText<Color::Magenta>(from)))) {}
-
-    explicit RuntimeError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-        : std::runtime_error(HighlightSyntax(std::format("{}: {} [{}]\n {} chained from {}", ColorText<Color::Red>(ErrorType::prefix), message, ColorText<Color::Magenta>(from), ColorText<Color::Yellow>("|-"), baseError.what()))) {}
-};
 
 struct RuntimeTypeError {
     static const std::string prefix;

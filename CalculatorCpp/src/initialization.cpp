@@ -7,7 +7,7 @@
 #include "initialization.h"
 #include "nodeFactory.h"
 
-const std::unordered_set<char> mainSeparatorKeys{ ' ', '\n', '\t' };
+const std::unordered_set<char> mainSeparatorKeys{ ' ', '\n', '\t', ','};
 const std::vector<std::string> mainRawStringBracket{ "{", "}", "[", "]" };
 const std::vector<std::string> mainKeywords{
 	"+",
@@ -34,6 +34,7 @@ const std::vector<std::string> mainKeywords{
 	//"pi",
 	//"setmem",
 	//"readmem",
+	"factor",
 	"sum",
 	"sigma",
 	"index",
@@ -127,6 +128,7 @@ void initializeParser(Parser& parser) {
 		{"sum", 9},
 		{"sigma", 9},
 		{"index", 9},
+		{"factor", 9},
 		{":=", 0},
 		{"@", 9},
 	};
@@ -150,6 +152,7 @@ void initializeParser(Parser& parser) {
 		//{"pi", EvalType::Constant},
 		//{"readmem", EvalType::Postfix},
 		//{"setmem", EvalType::Infix},
+		{"factor", EvalType::Postfix},
 		{"sigma", EvalType::Infix},
 		{"sum", EvalType::Postfix},
 		{"index", EvalType::Postfix},

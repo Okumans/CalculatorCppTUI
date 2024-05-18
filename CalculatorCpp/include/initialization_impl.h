@@ -123,21 +123,20 @@ const auto sigmaLambdaFunction = [](const std::unordered_map<Parser::Lexeme, Lam
 	);
 	};
 
-
 const Result<Lambda, std::runtime_error> sumLambdaFunction = Lambda::fromFunction(
 	"sum",																										// LambdaSignature			= "sum"
 	RCT::Lambda(RuntimeEvaluate::RuntimeEvaluate, RCT::Storage(RuntimeBaseType::Number)),						// LambdaType				= Lambda[Lambda[Number, Storage[Number...]], Number]
 	Lambda::LambdaNotation::Postfix,																			// LambdaNotation			= Lambda::LambdaNotation::Postfix
 	[](const Lambda::LambdaArguments& args) -> RuntimeTypedExprComponent {										// LambdaFunction			= ([0]: Number) -> Lambda[Lamba[Number, Number], Storage[Number...]]
 		return Lambda::fromFunction("", // null signature (does not add EvaluatorLambdaFunction)				// LambdaSignature			= _
-			RCT::Lambda(																						// LambdaType				= Lambda[Lamba[Number, Number], Storage[Number...]]
-				RuntimeBaseType::Number,
-				RCT::gurantreeNoRuntimeEvaluateStorage(
-					std::vector<RuntimeType>(
-						static_cast<size_t>(args[0].getStorage()[0].getNumber()),
-						RuntimeBaseType::Number)
-				)
-			),
+		RCT::Lambda(																						// LambdaType				= Lambda[Lamba[Number, Number], Storage[Number...]]
+			RuntimeBaseType::Number,
+			RCT::gurantreeNoRuntimeEvaluateStorage(
+				std::vector<RuntimeType>(
+					static_cast<size_t>(args[0].getStorage()[0].getNumber()),
+					RuntimeBaseType::Number)
+			)
+		),
 			Lambda::LambdaNotation::Postfix,																	// LambdaNotation			= Lambda::LambdaNotation::Postfix
 			[](const Lambda::LambdaArguments& _args) -> RuntimeTypedExprComponent {
 				long double summation{ 0 };
@@ -145,7 +144,7 @@ const Result<Lambda, std::runtime_error> sumLambdaFunction = Lambda::fromFunctio
 					summation += _arg.getNumber();
 				return Number(summation);
 			}
-		).getValue();
+).getValue();
 	}
 );
 
@@ -155,21 +154,21 @@ const Result<Lambda, std::runtime_error> indexLambdaFunction = Lambda::fromFunct
 	Lambda::LambdaNotation::Postfix,																			// LambdaNotation			= Lambda::LambdaNotation::Postfix
 	[](const Lambda::LambdaArguments& args) -> RuntimeTypedExprComponent {										// LambdaFunction			= ([0]: Number) -> Lambda[Lamba[Number, Number], Storage[Number...]]
 		return Lambda::fromFunction("", // null signature (does not add EvaluatorLambdaFunction)				// LambdaSignature			= _
-			RCT::Lambda(																						// LambdaType				= Lambda[Lamba[Number, Number], Storage[Number...]]
-				RuntimeEvaluate::RuntimeEvaluate,																
-				RCT::gurantreeNoRuntimeEvaluateStorage(
-					std::vector<RuntimeType>(
-						static_cast<size_t>(args[0].getStorage()[0].getNumber()), 
-						RuntimeBaseType::Number)
-				)
-			),
+		RCT::Lambda(																						// LambdaType				= Lambda[Lamba[Number, Number], Storage[Number...]]
+			RuntimeEvaluate::RuntimeEvaluate,
+			RCT::gurantreeNoRuntimeEvaluateStorage(
+				std::vector<RuntimeType>(
+					static_cast<size_t>(args[0].getStorage()[0].getNumber()),
+					RuntimeBaseType::Number)
+			)
+		),
 			Lambda::LambdaNotation::Postfix,																	// LambdaNotation			= Lambda::LambdaNotation::Postfix
 			[](const Lambda::LambdaArguments& _args) -> RuntimeTypedExprComponent {								// LambdaFunction			= ([0]: Storage[Number...]) -> Lamba[Number, Number]
 				return Lambda::fromFunction("", // null signature (does not add EvaluatorLambdaFunction)		// LambdaSignature			= _
-					RCT::Lambda(																				// LambdaType				= Lambda[Number, Number]
-						RuntimeBaseType::Number,
-						RuntimeBaseType::Number
-					),
+				RCT::Lambda(																				// LambdaType				= Lambda[Number, Number]
+					RuntimeBaseType::Number,
+					RuntimeBaseType::Number
+				),
 					Lambda::LambdaNotation::Postfix,															// LambdaNotation			= Lambda::LambdaNotation::Postfix
 					[_args](const Lambda::LambdaArguments& __args) -> RuntimeTypedExprComponent {				// LambdaFunction			= ([_0]: Storage[Number...], [0]: Number) -> Lamba[Number, Number]
 						size_t index{ static_cast<size_t>(__args[0].getNumber()) };
@@ -177,9 +176,9 @@ const Result<Lambda, std::runtime_error> indexLambdaFunction = Lambda::fromFunct
 							return Number(NodeFactory::NodePosNull);
 						return _args[index].getNumber();
 					}
-				).getValue(); // gurantree valid result
+).getValue(); // gurantree valid result
 			}
-		).getValue(); // gurantree valid result
+).getValue(); // gurantree valid result
 	}
 );
 
@@ -213,6 +212,26 @@ const Result<Lambda, std::runtime_error> getNumberFunction = Lambda::fromFunctio
 	}
 );
 
+const Result<Lambda, std::runtime_error> factorFunction = Lambda::fromFunction(
+	"factor",																									// LambdaFunctionSignature	= "@"
+	RCT::Lambda(RuntimeBaseType::Number, RuntimeBaseType::Number),											// LambdaType				= Lambda[Number, Number]
+	Lambda::LambdaNotation::Postfix,																		// LambdaNotation			= Lambda::LambdaNotation::Postfix
+	[](const Lambda::LambdaArguments& args) -> RuntimeTypedExprComponent {									// LambdaFunction			= ([0]: Number) -> Number
+		int64_t number{ static_cast<int64_t>(args[0].getNumber()) };
+		std::vector<RuntimeTypedExprComponent> factors;
+		int64_t sqrtNumber = static_cast<int64_t>(std::sqrtl(number));
+
+		for (int64_t i = 1; i <= sqrtNumber; ++i) {
+			if (number % i == 0) {
+				factors.emplace_back(i);
+				if (i != number / i) 
+					factors.emplace_back(number / i);
+			}
+		}
+
+		return Storage::fromVector(std::move(factors));
+	}
+);
 
 inline void initializeEvaluator(Evaluate& evaluator) {
 	evaluator.addOperatorFunction(addLambdaFunction.getValue());
@@ -227,6 +246,7 @@ inline void initializeEvaluator(Evaluate& evaluator) {
 	evaluator.addOperatorFunction(indexLambdaFunction.getValue());
 	evaluator.addOperatorFunction(getNumberFunction.getValue());
 	evaluator.addOperatorFunction(assignNumberFunction.getValue());
+	evaluator.addOperatorFunction(factorFunction.getValue());
 	/*evaluator.addOperatorFunction("+", [](Floating a, Floating b) {return a + b; });
 	evaluator.addOperatorFunction("-", [](Floating a, Floating b) {return a - b; });
 	evaluator.addOperatorFunction("*", [](Floating a, Floating b) {return a * b; });

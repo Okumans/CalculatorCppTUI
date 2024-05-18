@@ -347,5 +347,8 @@
     <ClInclude Include="include\colorText.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\runtime_error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -39,6 +39,16 @@ constexpr std::string ColorText(const std::string& text) {
 	return color_codes[static_cast<std::size_t>(color)] + text + color_codes[static_cast<std::size_t>(Color::Reset)];
 }
 
+// ColorText function (for char)
+template<Color color>
+constexpr std::string ColorText(const char text) {
+	std::string result;
+	result += color_codes[static_cast<std::size_t>(color)];
+	result += text;
+	result += color_codes[static_cast<std::size_t>(Color::Reset)];
+	return result;
+}
+
 // Syntax highlighting function
 inline std::string HighlightSyntax(const std::string& code) {
 	// Define regex patterns for keywords, numbers, and strings
