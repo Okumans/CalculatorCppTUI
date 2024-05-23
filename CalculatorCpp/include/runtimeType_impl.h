@@ -107,7 +107,7 @@ inline Result<RuntimeType, std::runtime_error> RuntimeCompoundType::ParseString(
 	static bool initialized = false;
 
 	if (!initialized)
-		lex.setKeywords({ "Number", "Storage", "Lambda", "[", "]" });
+		lex.setKeywords({ "Number", "NodePointer",  "Storage", "Lambda", "[", "]" });
 
 	// Tokenize the input string using the lexer
 	std::vector<std::string> lexemes = lex.lexing(stringLikeType).getValue();
@@ -154,6 +154,8 @@ inline Result<RuntimeType, std::runtime_error> RuntimeCompoundType::ParseString(
 		else {
 			if (lexeme == "Number")
 				operationStack.emplace(RuntimeBaseType::Number);
+			else if (lexeme == "NodePointer")
+				operationStack.emplace(RuntimeBaseType::NodePointer);
 			else if (lexeme == "Storage")
 				operationStack.emplace(RuntimeBaseType::_Storage);
 			else
@@ -251,6 +253,8 @@ inline std::ostream& operator<<(std::ostream& os, const RuntimeBaseType& ebt) {
 	switch (ebt) {
 	case RuntimeBaseType::Number:
 		os << "Number"; break;
+	case RuntimeBaseType::NodePointer:
+		os << "NodePointer"; break;
 	case RuntimeBaseType::_Lambda:
 		os << "NULL_Lambda"; break;
 	case RuntimeBaseType::_Storage:
@@ -268,6 +272,8 @@ inline std::ostream& operator<<(std::ostream& os, const RuntimeType& et) {
 		switch (runtimeCompoundType->Type) {
 		case RuntimeBaseType::Number:
 			os << "ERROR_Number"; break;
+		case RuntimeBaseType::NodePointer:
+			os << "ERROR_NodePointer"; break;
 		case RuntimeBaseType::_Lambda:
 			os << "Lambda"; break;
 		case RuntimeBaseType::_Storage:
@@ -295,6 +301,8 @@ inline std::string RuntimeTypeToString(const RuntimeType& rt) {
 		switch (runtimeCompoundType->Type) {
 		case RuntimeBaseType::Number:
 			oss << "ERROR_Number"; break;
+		case RuntimeBaseType::NodePointer:
+			oss << "ERROR_NodePointer"; break;
 		case RuntimeBaseType::_Lambda:
 			oss << "Lambda"; break;
 		case RuntimeBaseType::_Storage:
@@ -318,6 +326,8 @@ inline std::ostream& operator<<(std::ostream& os, const RuntimeCompoundType& ect
 	switch (ect.Type) {
 	case RuntimeBaseType::Number:
 		os << "ERROR_Number"; break;
+	case RuntimeBaseType::NodePointer:
+		os << "ERROR_NodePointer"; break;
 	case RuntimeBaseType::_Lambda:
 		os << "Lambda"; break;
 	case RuntimeBaseType::_Storage:

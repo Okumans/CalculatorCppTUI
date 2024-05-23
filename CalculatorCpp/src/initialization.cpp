@@ -7,7 +7,7 @@
 #include "initialization.h"
 #include "nodeFactory.h"
 
-const std::unordered_set<char> mainSeparatorKeys{ ' ', '\n', '\t', ','};
+const std::unordered_set<char> mainSeparatorKeys{ ' ', '\n', '\t', ',' };
 const std::vector<std::string> mainRawStringBracket{ "{", "}", "[", "]" };
 const std::vector<std::string> mainKeywords{
 	"+",
@@ -39,16 +39,20 @@ const std::vector<std::string> mainKeywords{
 	"sigma",
 	"index",
 	"@",
-	":="
+	":=",
+	"&&",
+	"||",
+	"==",
+	"@size"
 };
 
 static std::vector<std::pair<std::string, std::string>> splitIntoPairs(const std::vector<std::string>& vec) {
 	std::vector<std::pair<std::string, std::string>> result;
-	result.reserve(vec.size() / 2 + vec.size() % 2); 
+	result.reserve(vec.size() / 2 + vec.size() % 2);
 	for (size_t i = 0; i < vec.size(); i += 2) {
-		if (i + 1 < vec.size()) 
+		if (i + 1 < vec.size())
 			result.emplace_back(vec[i], vec[i + 1]);
-		else 
+		else
 			result.emplace_back(vec[i], "");
 	}
 	return result;
@@ -61,10 +65,10 @@ void initializeLexer(Lexer& lexer) {
 	lexer.setSeperatorKeys(mainSeparatorKeys);
 }
 
-std::function<std::vector<std::string>(const std::string&)> initializeStaticLexer(const std::vector<std::string> &extendsKeywords) {
+std::function<std::vector<std::string>(const std::string&)> initializeStaticLexer(const std::vector<std::string>& extendsKeywords) {
 	static TrieTree keywordTree(mainKeywords);
 	static TrieTree rawStringBracketKeywordTree(mainRawStringBracket);
-	static Brackets rawStringBracket{splitIntoPairs(mainRawStringBracket)};
+	static Brackets rawStringBracket{ splitIntoPairs(mainRawStringBracket) };
 	static std::queue<std::string> skeduleRemove;
 
 	while (!skeduleRemove.empty()) {
@@ -99,7 +103,6 @@ std::function<std::vector<std::string>(const std::string&)> initializeStaticLexe
 	return [](const std::string& content) {return Lexer::lexing(keywordTree, rawStringBracketKeywordTree, mainSeparatorKeys, rawStringBracket, content); };
 }
 
-
 void initializeParser(Parser& parser) {
 	const std::vector<std::pair<Parser::Lexeme, Parser::Lexeme>> mainBracketPairs{
 		{"[", "]"},
@@ -108,14 +111,14 @@ void initializeParser(Parser& parser) {
 	};
 
 	const std::vector<std::pair<Parser::Lexeme, Parser::OperatorLevel>> mainOperatorLevels{
-		{"+", 1},
-		{"-", 1},
-		{"*", 2},
-		{"/", 2},
+		{"+", 3},
+		{"-", 3},
+		{"*", 4},
+		{"/", 5},
 		//{"//", 1},
 		//{"!", 9},
 		//{"~", 9},
-		{"^", 3},
+		{"^", 5},
 		{"sqrt", 9},
 		//{"abs", 9},
 		//{"k", 9},
@@ -131,6 +134,10 @@ void initializeParser(Parser& parser) {
 		{"factor", 9},
 		{":=", 0},
 		{"@", 9},
+		{"||", 1},
+		{"&&", 1},
+		{"==", 2},
+		{"@size", 9}
 	};
 
 	using EvalType = Parser::OperatorEvalType;
@@ -158,6 +165,10 @@ void initializeParser(Parser& parser) {
 		{"index", EvalType::Postfix},
 		{":=", EvalType::Infix},
 		{"@", EvalType::Postfix},
+		{"||", EvalType::Infix},
+		{"&&", EvalType::Infix},
+		{"==", EvalType::Infix},
+		{"@size", EvalType::Prefix},
 	};
 
 	parser.setBracketOperators(mainBracketPairs);
