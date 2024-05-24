@@ -529,7 +529,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 		NodeFactory::NodePos operatorNode = createRawExpressionStorage(fullyParsedOperationTree.getValue());
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::LambdaFuntion;
 		NodeFactory::node(operatorNode).utilityStorage = variableLexemesWithTypes;
-		NodeFactory::node(operatorNode).value = std::format("lambda-{:x}", randomNumber());
+		NodeFactory::node(operatorNode).value = std::format("lambda");
 
 		return operatorNode;
 	}
@@ -542,7 +542,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 		else
 			operatorNode = createRawExpressionStorage(fullyParsedOperationTree.getValue());
 
-		NodeFactory::node(operatorNode).value = std::format("storage-{:x}", randomNumber());
+		NodeFactory::node(operatorNode).value = std::format("storage");
 		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Storage;
 
 		return operatorNode;

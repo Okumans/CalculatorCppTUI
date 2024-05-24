@@ -174,33 +174,71 @@ private:
 	Storage(RuntimeCompoundType&& storageType, StorageArguments&& storageData);
 };
 
-
-class RuntimeTypedExprComponent : public std::variant<Number, Storage, Lambda> {
+// act like a void pointer
+class NodePointer : public BaseRuntimeTypedExprComponent {
 public:
-	const Number& getNumber() const;
-	const Lambda& getLambda() const;
-	const Storage& getStorage() const;
-	RuntimeBaseType getTypeHolded() const;
-	RuntimeType getDetailTypeHold() const;
-	const RuntimeTypedExprComponent& operator[](size_t index) const;
+	// constructors
+	explicit NodePointer(NodePos target);
+	explicit NodePointer();
+
+	// getter
+	bool isTypeValid(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction) const;
+	bool isNodePointerValid() const;
+	Result<RuntimeTypedExprComponent, std::runtime_error> getPointed(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction) const;
+	NodePos getPointerIndex() const;
+	const NodeFactory::Node& getPointerNode() const;
+
+	// setter
+	void changePoint(NodePos target);
+
+	// BaseRuntimeTypedExprComponents general feature implementors
+	std::string toString() const override;
+	NodePos generateExpressionTree() const override;
+
+};
+
+class RuntimeTypedExprComponent : public std::variant<Number, Storage, Lambda, NodePointer> {
+public:
+	// constructors
 	RuntimeTypedExprComponent(const Storage& component);
 	RuntimeTypedExprComponent(Storage&& component);
 	RuntimeTypedExprComponent(const Lambda& component);
 	RuntimeTypedExprComponent(Lambda&& component);
 	RuntimeTypedExprComponent(const Number& component);
 	RuntimeTypedExprComponent(Number&& component);
+	RuntimeTypedExprComponent(const NodePointer& component);
+	RuntimeTypedExprComponent(NodePointer&& component);
 	RuntimeTypedExprComponent(long double component);
 	RuntimeTypedExprComponent(const RuntimeTypedExprComponent& component);
 	RuntimeTypedExprComponent(RuntimeTypedExprComponent&& component) noexcept;
+
+	// static constructor
 	static Result<RuntimeTypedExprComponent, std::runtime_error> fromNodeExpression(NodeFactory::NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
+	
+	// getters
+	const Number& getNumber() const;
+	const Lambda& getLambda() const;
+	const Storage& getStorage() const;
+	const NodePointer& getNodePointer() const;
+	RuntimeBaseType getTypeHolded() const;
+	RuntimeType getDetailTypeHold() const;
+
+	// operator getter
+	const RuntimeTypedExprComponent& operator[](size_t index) const;
+	
+	// BaseRuntimeTypedExprComponents general feature implementors
 	std::string toString() const;
 	NodeFactory::NodePos toNodeExpression() const;
+	
+	// equality operators
 	RuntimeTypedExprComponent& operator=(const RuntimeTypedExprComponent& other);
 	RuntimeTypedExprComponent& operator=(RuntimeTypedExprComponent&& other) noexcept;
+	
+	// ostream operator
+	friend std::ostream& operator<<(std::ostream& os, const RuntimeTypedExprComponent& rttexcp);
 private:
 	RuntimeBaseType mStoredType;
 
-	friend std::ostream& operator<<(std::ostream& os, const RuntimeTypedExprComponent& rttexcp);
 };
 
 template <>
@@ -216,4 +254,5 @@ struct std::formatter<RuntimeTypedExprComponent> : std::formatter<std::string> {
 #include "runtimeTypedExprComponent_impl_lambda.h"
 #include "runtimeTypedExprComponent_impl_number.h"
 #include "runtimeTypedExprComponent_impl_storage.h"
+#include "runtimeTypedExprComponent_impl_nodePointer.h"
 #include "runtimeTypeExprComponent_impl_utility.h"

@@ -51,4 +51,8 @@ NodeFactory::Node& NodeFactory::Node::leftNode() {
 	return NodeFactory::iGetInstance().iNode(leftPos);
 }
 
+bool NodeFactory::Node::operator==(const Node& other) const {
+	return (value == other.value && nodestate == other.nodestate && utilityStorage == other.utilityStorage);
+}
+
 

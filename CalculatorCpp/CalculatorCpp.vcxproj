@@ -268,6 +268,7 @@
     <ClInclude Include="include\runtimeType.h" />
     <ClInclude Include="include\runtimeTypedExprComponent.h" />
     <ClInclude Include="include\runtimeTypedExprComponent_impl_lambda.h" />
+    <ClInclude Include="include\runtimeTypedExprComponent_impl_nodePointer.h" />
     <ClInclude Include="include\runtimeTypedExprComponent_impl_number.h" />
     <ClInclude Include="include\runtimeTypedExprComponent_impl_storage.h" />
     <ClInclude Include="include\runtimeTypeExprComponent_impl_utility.h" />

@@ -21,6 +21,7 @@ inline const std::string RuntimeTypeError::prefix = "RuntimeTypeError";
 // Enum representing the base types that can be stored in RuntimeTypedExprComponent
 enum class RuntimeBaseType : int8_t {
     Number,  // Numeric type
+    NodePointer, // Unsigned interget pointed to specific node
     _Lambda, // Internal use for representing lambda functions
     _Storage, // Internal use for representing storage types (collections)
 };

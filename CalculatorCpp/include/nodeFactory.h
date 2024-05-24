@@ -33,6 +33,8 @@ public:
 		explicit Node(const std::string& value);
 		Node& rightNode();
 		Node& leftNode();
+
+		bool operator==(const Node& other) const;
 	};
 
 private:

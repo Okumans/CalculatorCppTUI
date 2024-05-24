@@ -203,7 +203,8 @@ int main(int argc, char* argv[])
 		if (!pas.parserReady().has_value()) {
 			auto root = pas.createOperatorTree(parsedResult);
 
-			if (auto rootResult = root.getValue(); !root.isError()) {
+			if (!root.isError()) {
+				auto rootResult{ root.moveValue() };
 				std::cout << ColorText<Color::Yellow>(" ⇒ ") << pas.printOpertatorTree(rootResult, eval.getEvaluationLambdaFunction()) << "\n";
 
 				if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
