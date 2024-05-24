@@ -6,9 +6,16 @@
 inline Number::Number(long double number) :
 	BaseRuntimeTypedExprComponent{
 		RuntimeBaseType::Number,
-		generateExpressionTree(number)
+		NodeFactory::NodePosNull
 	},
 	mNumber{ number } {}
+
+inline Number::Number() :
+	BaseRuntimeTypedExprComponent{
+		RuntimeBaseType::Number,
+		NodeFactory::NodePosNull
+	},
+	mNumber{ 0 } {}
 
 inline Number Number::fromExpressionNode(NodePos numberExpression) {
 	return Number(numberExpression, true);
@@ -26,11 +33,11 @@ inline Number::Number(NodePos numberExpression, bool) :
 	BaseRuntimeTypedExprComponent{
 		RuntimeBaseType::Number,
 		numberExpression
-	},
-	mNumber{ std::stold(NodeFactory::node(numberExpression).value) } {}
+},
+mNumber{ std::stold(NodeFactory::node(numberExpression).value) } {}
 
-inline NodeFactory::NodePos Number::generateExpressionTree(long double number) const {
-	return NodeFactory::create(std::to_string(number));
+inline NodeFactory::NodePos Number::generateExpressionTree() const {
+	return NodeFactory::create(std::to_string(mNumber));
 }
 
 inline std::string Number::toString() const {

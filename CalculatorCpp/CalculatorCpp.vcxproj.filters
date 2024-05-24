@@ -344,5 +344,14 @@
     <ClInclude Include="include\runtimeType_impl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\colorText.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\runtime_error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\runtimeTypedExprComponent_impl_nodePointer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

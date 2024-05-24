@@ -5,12 +5,14 @@
 #include <cctype>
 #include <stack>
 
+#include "runtime_error.h"
+
 #define DEBUG
 #include "debug.cpp"
 
 static void nonEmptyPushback(std::vector<std::string>& vec, const std::string& str)
 {
-	if (!str.empty()) vec.push_back(str);
+	if (!str.empty()) vec.emplace_back(str);
 }
 
 void Lexer::setKeywords(const std::vector<std::string>& keywords)
@@ -21,13 +23,13 @@ void Lexer::setKeywords(const std::vector<std::string>& keywords)
 
 void Lexer::addKeyword(const std::string& keyword)
 {
-	mKeywords.push_back(keyword);
+	mKeywords.emplace_back(keyword);
 	_reinitializeKeyWordTree();
 }
 
 void Lexer::_addKeyword_not_reinitializeKeyWordTree(const std::string& keyword)
 {
-	mKeywords.push_back(keyword);
+	mKeywords.emplace_back(keyword);
 }
 
 void Lexer::setSeperatorKeys(const std::unordered_set<char>& keys) {
@@ -135,26 +137,30 @@ bool handleRawString(
 	return false;
 }
 
-std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
-	std::string buff{ "" };
-	std::string rawStringBracketBuff{ "" };
+Result<std::vector<std::string>, std::runtime_error> Lexer::lexing(const std::string& currContent, bool throwError) const {
+	std::string buff;
+	std::string rawStringBracketBuff;
 	std::vector<std::string> temp;
+	std::vector<size_t> unvalidPosition;
 	TrieTree::StartsWithsInstance startWithInst(mKeywordTree);
 	TrieTree::StartsWithsInstance startWithRawStringInst(mRawStringBracketTree);
 
 	std::stack<std::string> isCurrentRawString;
 
-	buff.reserve(50);
-	temp.reserve(50);
+	buff.reserve(currContent.size());
+	temp.reserve(currContent.size());
+	unvalidPosition.reserve(currContent.size());
 
 	auto clearBuffer = [&buff, &temp, &startWithInst, this]() {
 		if (mKeywordTree.search(buff))
-			temp.push_back(buff);
+			temp.emplace_back(buff);
 		startWithInst.reset();
 		buff.clear();
 		};
 
-	for (char chr : currContent) {
+	for (size_t ind{ 0 }; ind < currContent.length(); ind++) {
+		char chr{ currContent[ind] };
+
 		if ((!temp.empty() &&
 			(mRawStringBracket.openBracketsOperators.contains(temp.back()) || !isCurrentRawString.empty())) &&
 			handleRawString(chr, temp, buff, rawStringBracketBuff, startWithInst, startWithRawStringInst, isCurrentRawString, mRawStringBracket))
@@ -168,18 +174,19 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 		}
 
 		if (!buff.empty() && std::isdigit(buff.at(0))) {
-			temp.push_back(buff);
+			temp.emplace_back(buff);
 			buff.clear();
 		}
 
 		if (mSeparatorKeys.contains(chr) || !startWithInst.insertChar(chr)) {
 			clearBuffer();
-			if (startWithInst.insertChar(chr) || 
+			if (startWithInst.insertChar(chr) ||
 				(!temp.empty() && mRawStringBracket.openBracketsOperators.contains(temp.back())))
 				buff += chr;
+			else if (!mSeparatorKeys.contains(chr))
+				unvalidPosition.emplace_back(ind);
 			continue;
 		}
-
 		buff += chr;
 	}
 
@@ -191,9 +198,26 @@ std::vector<std::string> Lexer::lexing(const std::string& currContent) const {
 	else if (!isCurrentRawString.empty())
 		nonEmptyPushback(temp, buff + rawStringBracketBuff);
 
-	else if (buff.length() && (mKeywordTree.search(buff) || (buff.length() && std::isdigit(buff.at(0)))))
-		temp.push_back(buff);
+	else if (buff.length() && (mKeywordTree.search(buff) || std::isdigit(buff.at(0))))
+		temp.emplace_back(buff);
 
+	if (throwError && unvalidPosition.size()) {
+		std::string errorMessage;
+		size_t unvalid_ind_ind{ 0 };
+		for (size_t _ind{ 0 }; _ind < currContent.size(); _ind++) {
+			while (unvalid_ind_ind + 1 < unvalidPosition.size() && _ind > unvalidPosition[unvalid_ind_ind]) 
+				unvalid_ind_ind++;
+
+			if (_ind == unvalidPosition[unvalid_ind_ind])
+				errorMessage += ColorText<Color::Bright_Red>(currContent[_ind]);
+			else 
+				errorMessage += ColorText<Color::Green>(currContent[_ind]);
+		}
+		return RuntimeError<LexingError>(
+			std::format("Found unvalid characters While attempting to lex \"{}\".", errorMessage),
+			"Lexer::lexing");
+	}
+	
 	return temp;
 }
 
@@ -203,7 +227,6 @@ std::vector<std::string> Lexer::lexing(
 	const std::unordered_set<char>& separatorKeys,
 	const Brackets& rawStringBracket,
 	const std::string& currContent) {
-
 	std::string buff{ "" };
 	std::string rawStringBracketBuff{ "" };
 	std::vector<std::string> temp;
@@ -217,7 +240,7 @@ std::vector<std::string> Lexer::lexing(
 
 	auto clearBuffer = [&buff, &temp, &startWithInst, &keywordTree]() {
 		if (keywordTree.search(buff))
-			temp.push_back(buff);
+			temp.emplace_back(buff);
 		startWithInst.reset();
 		buff.clear();
 		};
@@ -236,7 +259,7 @@ std::vector<std::string> Lexer::lexing(
 		}
 
 		if (!buff.empty() && std::isdigit(buff.at(0))) {
-			temp.push_back(buff);
+			temp.emplace_back(buff);
 			buff.clear();
 		}
 
@@ -259,11 +282,10 @@ std::vector<std::string> Lexer::lexing(
 		nonEmptyPushback(temp, buff + rawStringBracketBuff);
 
 	else if (buff.length() && (keywordTree.search(buff) || (buff.length() && std::isdigit(buff.at(0)))))
-		temp.push_back(buff);
+		temp.emplace_back(buff);
 
 	return temp;
 }
-
 
 void Lexer::_reinitializeKeyWordTree()
 {

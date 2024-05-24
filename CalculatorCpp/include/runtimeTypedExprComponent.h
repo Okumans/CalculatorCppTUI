@@ -16,52 +16,21 @@ class RuntimeTypedExprComponent;
 template <typename T>
 concept RuntimeTypedExprComponentRequired = std::is_convertible_v<T, RuntimeTypedExprComponent>;
 
-// Custom exception class for runtime type errors
-class LambdaConstructionError : public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit LambdaConstructionError(const std::string& message)
-		: std::runtime_error("LambdaConstructionError: " + message) {}
-
-	// Constructor with message and origin information
-	explicit LambdaConstructionError(const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaConstructionError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit LambdaConstructionError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaConstructionError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct LambdaConstructionError {
+	static const std::string prefix;
 };
+inline const std::string LambdaConstructionError::prefix = "LambdaConstructionError";
 
-// Custom exception class for runtime type errors
-class LambdaEvaluationError : public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit LambdaEvaluationError(const std::string& message)
-		: std::runtime_error("LambdaEvaluationError: " + message) {}
-
-	// Constructor with message and origin information
-	explicit LambdaEvaluationError(const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaEvaluationError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit LambdaEvaluationError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("LambdaEvaluationError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct LambdaEvaluationError {
+	static const std::string prefix;
 };
+inline const std::string LambdaEvaluationError::prefix = "LambdaEvaluationError";
 
-class StorageEvaluationError : public std::runtime_error {
-public:
-	// Constructor with a single message
-	explicit StorageEvaluationError(const std::string& message)
-		: std::runtime_error("StorageEvaluationError: " + message) {}
 
-	// Constructor with message and origin information
-	explicit StorageEvaluationError(const std::string& message, const std::string& from)
-		: std::runtime_error("StorageEvaluationError: " + message + " (from: " + from + ")") {}
-
-	// Constructor with chained error, message, and origin information
-	explicit StorageEvaluationError(const std::runtime_error& baseError, const std::string& message, const std::string& from)
-		: std::runtime_error("StorageEvaluationError: " + message + " (from: " + from + ") chained from " + baseError.what()) {}
+struct StorageEvaluationError {
+	static const std::string prefix;
 };
+inline const std::string StorageEvaluationError::prefix = "StorageEvaluationError";
 
 class BaseRuntimeTypedExprComponent {
 protected:
@@ -69,21 +38,22 @@ protected:
 
 public:
 	virtual std::string toString() const = 0;
+	virtual NodePos generateExpressionTree() const = 0;
+
 	const RuntimeType& getType() const {
 		return mType;
 	}
-	
+
 	NodePos getNodeExpression() const {
+		if (!NodeFactory::validNode(mNodeExpression))
+			_setNodeExpression(generateExpressionTree());
 		return mNodeExpression;
 	}
+	
 
 protected:
 	RuntimeType mType;
-	NodePos mNodeExpression;
-
-	void setNodeExpression(NodePos nodeExpression) {
-		mNodeExpression = nodeExpression;
-	}
+	mutable NodePos mNodeExpression{ NodeFactory::NodePosNull };
 
 	BaseRuntimeTypedExprComponent(const RuntimeType& type, NodePos nodeExpression) :
 		mType{ type },
@@ -92,6 +62,14 @@ protected:
 	BaseRuntimeTypedExprComponent(RuntimeType&& type, NodePos nodeExpression) :
 		mType{ std::move(type) },
 		mNodeExpression{ nodeExpression } {}
+
+	void _setNodeExpression(NodePos nodeExpression) const {
+		mNodeExpression = nodeExpression;
+	}
+
+	NodePos _getNodeExpression() const {
+		return mNodeExpression;
+	}
 
 	friend std::ostream& operator<<(std::ostream& os, BaseRuntimeTypedExprComponent const& brttexc) {
 		os << brttexc.toString();
@@ -106,7 +84,9 @@ Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootE
 class Number : public BaseRuntimeTypedExprComponent {
 public:
 	Number(long double number);
+	Number();
 	static Number fromExpressionNode(NodePos numberNodeExpression);
+	NodePos generateExpressionTree() const override;
 
 	long double getNumber() const;
 	std::string toString() const override;
@@ -116,7 +96,6 @@ public:
 private:
 	long double mNumber;
 	Number(NodePos numberExpression, bool);
-	NodePos generateExpressionTree(long double number) const;
 };
 
 class Lambda : public BaseRuntimeTypedExprComponent {
@@ -146,6 +125,8 @@ public:
 	std::optional<std::string_view> getLambdaSignature() const;
 	LambdaNotation getNotation() const;
 	std::string toString() const override;
+	NodePos generateExpressionTree(const std::string& functionSignature) const;
+	NodePos generateExpressionTree() const override;
 
 private:
 	RuntimeCompoundType::LambdaInfo mLambdaInfo;
@@ -156,12 +137,12 @@ private:
 
 	Lambda(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
 	Lambda(const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
-	NodePos generateExpressionTree(const std::string& functionSignature) const;
 	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 	static Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> _NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 
 	friend class Storage;
 	friend class Evaluate;
+	friend class Parser;
 };
 
 class Storage : public BaseRuntimeTypedExprComponent {
@@ -184,6 +165,7 @@ public:
 	const std::vector<RuntimeTypedExprComponent>& getData() const;
 	size_t size() const;
 	std::string toString() const override;
+	NodePos generateExpressionTree() const override;
 
 private:
 	RuntimeCompoundType::StorageInfo mStorageInfo;
@@ -191,35 +173,73 @@ private:
 
 	Storage(const RuntimeCompoundType& storageType, const StorageArguments& storageData);
 	Storage(RuntimeCompoundType&& storageType, StorageArguments&& storageData);
-	NodePos generateExpressionTree(const StorageArguments& storageData) const;
 };
 
-class RuntimeTypedExprComponent : public std::variant<Number, Storage, Lambda> {
+// act like a void pointer
+class NodePointer : public BaseRuntimeTypedExprComponent {
 public:
-	const Number& getNumber() const;
-	const Lambda& getLambda() const;
-	const Storage& getStorage() const;
-	RuntimeBaseType getTypeHolded() const;
-	RuntimeType getDetailTypeHold() const;
-	const RuntimeTypedExprComponent& operator[](size_t index) const;
+	// constructors
+	explicit NodePointer(NodePos target);
+	explicit NodePointer();
+
+	// getter
+	bool isTypeValid(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction) const;
+	bool isNodePointerValid() const;
+	Result<RuntimeTypedExprComponent, std::runtime_error> getPointed(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction) const;
+	NodePos getPointerIndex() const;
+	const NodeFactory::Node& getPointerNode() const;
+
+	// setter
+	void changePoint(NodePos target);
+
+	// BaseRuntimeTypedExprComponents general feature implementors
+	std::string toString() const override;
+	NodePos generateExpressionTree() const override;
+
+};
+
+class RuntimeTypedExprComponent : public std::variant<Number, Storage, Lambda, NodePointer> {
+public:
+	// constructors
 	RuntimeTypedExprComponent(const Storage& component);
 	RuntimeTypedExprComponent(Storage&& component);
 	RuntimeTypedExprComponent(const Lambda& component);
 	RuntimeTypedExprComponent(Lambda&& component);
 	RuntimeTypedExprComponent(const Number& component);
 	RuntimeTypedExprComponent(Number&& component);
+	RuntimeTypedExprComponent(const NodePointer& component);
+	RuntimeTypedExprComponent(NodePointer&& component);
 	RuntimeTypedExprComponent(long double component);
 	RuntimeTypedExprComponent(const RuntimeTypedExprComponent& component);
 	RuntimeTypedExprComponent(RuntimeTypedExprComponent&& component) noexcept;
+
+	// static constructor
 	static Result<RuntimeTypedExprComponent, std::runtime_error> fromNodeExpression(NodeFactory::NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
+	
+	// getters
+	const Number& getNumber() const;
+	const Lambda& getLambda() const;
+	const Storage& getStorage() const;
+	const NodePointer& getNodePointer() const;
+	RuntimeBaseType getTypeHolded() const;
+	RuntimeType getDetailTypeHold() const;
+
+	// operator getter
+	const RuntimeTypedExprComponent& operator[](size_t index) const;
+	
+	// BaseRuntimeTypedExprComponents general feature implementors
 	std::string toString() const;
 	NodeFactory::NodePos toNodeExpression() const;
+	
+	// equality operators
 	RuntimeTypedExprComponent& operator=(const RuntimeTypedExprComponent& other);
 	RuntimeTypedExprComponent& operator=(RuntimeTypedExprComponent&& other) noexcept;
+	
+	// ostream operator
+	friend std::ostream& operator<<(std::ostream& os, const RuntimeTypedExprComponent& rttexcp);
 private:
 	RuntimeBaseType mStoredType;
 
-	friend std::ostream& operator<<(std::ostream& os, const RuntimeTypedExprComponent& rttexcp);
 };
 
 template <>
@@ -235,4 +255,5 @@ struct std::formatter<RuntimeTypedExprComponent> : std::formatter<std::string> {
 #include "runtimeTypedExprComponent_impl_lambda.h"
 #include "runtimeTypedExprComponent_impl_number.h"
 #include "runtimeTypedExprComponent_impl_storage.h"
+#include "runtimeTypedExprComponent_impl_nodePointer.h"
 #include "runtimeTypeExprComponent_impl_utility.h"

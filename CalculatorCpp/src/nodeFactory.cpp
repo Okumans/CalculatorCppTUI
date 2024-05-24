@@ -37,6 +37,10 @@ void NodeFactory::reserve(size_t amount) {
 	iGetInstance().mNodeData.reserve(amount);
 }
 
+size_t NodeFactory::size() {
+	return iGetInstance().mNodeData.size();
+}
+
 void NodeFactory::freeAll() {
 	iGetInstance().iFreeAll();
 }
@@ -49,6 +53,10 @@ NodeFactory::Node& NodeFactory::Node::rightNode() {
 
 NodeFactory::Node& NodeFactory::Node::leftNode() {
 	return NodeFactory::iGetInstance().iNode(leftPos);
+}
+
+bool NodeFactory::Node::operator==(const Node& other) const {
+	return (value == other.value && nodestate == other.nodestate && utilityStorage == other.utilityStorage);
 }
 
 

@@ -6,29 +6,29 @@
 #include "runtimeTypedExprComponent.h"
 
 inline Storage::Storage(const RuntimeCompoundType& storageType, const StorageArguments& storageData) :
-	BaseRuntimeTypedExprComponent(storageType, generateExpressionTree(storageData)),
+	BaseRuntimeTypedExprComponent(storageType, NodeFactory::NodePosNull),
 	mStorageInfo{ RuntimeCompoundType::getStorageInfo(storageType) },
 	mStroageData{ storageData } {}
 
 inline Storage::Storage(RuntimeCompoundType&& storageType, StorageArguments&& storageData) :
-	BaseRuntimeTypedExprComponent(std::move(storageType), generateExpressionTree(storageData)),
+	BaseRuntimeTypedExprComponent(std::move(storageType), NodeFactory::NodePosNull),
 	mStorageInfo{ RuntimeCompoundType::getStorageInfo(storageType) },
 	mStroageData{ std::move(storageData) } {}
 
 inline Storage::Storage(const Storage& other) :
-	BaseRuntimeTypedExprComponent(other.mType, other.mNodeExpression),
+	BaseRuntimeTypedExprComponent(other.getType(), other._getNodeExpression()),
 	mStorageInfo{ other.mStorageInfo },
 	mStroageData{ other.mStroageData } {}
 
 inline Storage::Storage(Storage&& other) noexcept :
-	BaseRuntimeTypedExprComponent(std::move(other.mType), other.mNodeExpression),
+	BaseRuntimeTypedExprComponent(std::move(other.mType), other._getNodeExpression()),
 	mStorageInfo{ std::move(other.mStorageInfo) },
 	mStroageData{ std::move(other.mStroageData) } {}
 
 inline Storage& Storage::operator=(const Storage& other) {
 	if (this != &other) {
-		mType = other.mType;
-		mNodeExpression = other.mNodeExpression;
+		mType = other.getType();
+		mNodeExpression = other._getNodeExpression();
 		mStroageData = other.mStroageData;
 		mStorageInfo = other.mStorageInfo;
 	}
@@ -39,7 +39,7 @@ inline Storage& Storage::operator=(const Storage& other) {
 inline Storage& Storage::operator=(Storage&& other) noexcept {
 	if (this != &other) {
 		mType = std::move(other.mType);
-		mNodeExpression = other.mNodeExpression;
+		mNodeExpression = other._getNodeExpression();
 		mStroageData = std::move(other.mStroageData);
 		mStorageInfo = std::move(other.mStorageInfo);
 	}
@@ -62,7 +62,7 @@ inline Result<Storage, std::runtime_error> Storage::fromVector(const RuntimeComp
 			}, storageArg);
 	}
 
-	if (RuntimeCompoundType::Storage(std::move(storageDataTypes)) != storageType)
+	if (RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)) != storageType)
 		return std::runtime_error("Storage argument type and storage configured type not matched.");
 
 	return Storage(storageType, storageData);
@@ -83,7 +83,7 @@ inline Storage Storage::fromVector(const StorageArguments& storageData) {
 			}, storageArg);
 	}
 
-	return Storage(RuntimeCompoundType::Storage(storageDataTypes), storageData);
+	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(storageDataTypes), storageData);
 }
 
 inline Storage Storage::fromVector(StorageArguments&& storageData) {
@@ -101,11 +101,11 @@ inline Storage Storage::fromVector(StorageArguments&& storageData) {
 			}, storageArg);
 	}
 
-	return Storage(RuntimeCompoundType::Storage(std::move(storageDataTypes)), std::move(storageData));
+	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)), std::move(storageData));
 }
 
 inline Storage Storage::NullStorage() {
-	return Storage(RuntimeCompoundType::Storage({}), {});
+	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({}), {});
 }
 
 template <RuntimeTypedExprComponentRequired ...Args>
@@ -152,7 +152,7 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 	Result<StorageArguments, std::runtime_error> argumentsResult{ Lambda::_NodeExpressionsEvaluator(argumentNodeExpressions, EvaluatorLambdaFunctions) };
 
 	if (argumentsResult.isError())
-		return StorageEvaluationError(
+		return RuntimeError<StorageEvaluationError>(
 			argumentsResult.getException(),
 			"When trying to evalute arguments of Storage",
 			"Storage::fromExpressionNode"
@@ -181,21 +181,20 @@ inline size_t Storage::size() const {
 	return mStroageData.size();
 }
 
-inline NodeFactory::NodePos Storage::generateExpressionTree(const StorageArguments& storageData) const {
+inline NodeFactory::NodePos Storage::generateExpressionTree() const {
 	NodePos root = NodeFactory::create();
 	NodePos tail = root;
 
 	NodeFactory::node(root).nodestate = NodeFactory::Node::NodeState::Storage;
 
-	if (storageData.empty())
+	if (mStroageData.empty())
 		return root;
 
-	NodeFactory::node(tail).leftPos = storageData.front().toNodeExpression();
+	NodeFactory::node(tail).leftPos = mStroageData.front().toNodeExpression();
 
-	for (size_t i{ 1 }; i < storageData.size(); i++)
-	{
+	for (size_t i{ 1 }; i < mStroageData.size(); i++) {
 		NodePos curr = NodeFactory::create();
-		NodeFactory::node(curr).leftPos = storageData[i].toNodeExpression();
+		NodeFactory::node(curr).leftPos = mStroageData[i].toNodeExpression();
 		NodeFactory::node(tail).rightPos = curr;
 		tail = curr;
 	}
