@@ -175,6 +175,24 @@ int main(int argc, char* argv[])
 		if (input == "quit")
 			return 0;
 
+		// debug tool make it better later
+		if (input == ":node-profile") {
+			size_t nodePosition{ 0 };
+			while (NodeFactory::validNode(nodePosition)) {
+				const NodeFactory::Node& nNode{ NodeFactory::node(nodePosition) };
+				std::string utilityStorageString;
+				for (const auto& [paramName, paramType] : nNode.utilityStorage) {
+					utilityStorageString += paramName + ": " + RuntimeTypeToString(paramType) + ", ";
+				}
+				if (nNode.utilityStorage.size()) {
+					utilityStorageString.pop_back();
+					utilityStorageString.pop_back();
+				}
+				std::cout << std::format("Node({}): \n\t value-----\t: \"{}\" \n\t nodeState-\t: {}\n\t leftPos---\t: {} \n\t rightPos--\t: {} \n\t paramsType\t: [{}]\n", nodePosition, nNode.value, (int)nNode.nodestate, nNode.leftPos, nNode.rightPos, utilityStorageString);
+				nodePosition++;
+			}
+		}
+
 		auto lexResult = lex.lexing(input, true);
 
 		if (lexResult.isError()) {	
