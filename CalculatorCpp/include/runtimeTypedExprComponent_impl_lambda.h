@@ -474,6 +474,8 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 						"Lambda::_NodeExpressionsEvaluator"
 					);
 
+				std::cout << evalutationResult.getValue() << "";
+
 				evaluationResults.pop_back();
 				evaluationResults.emplace_back(evalutationResult.moveValue());
 				continue;

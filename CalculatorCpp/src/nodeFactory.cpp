@@ -37,6 +37,10 @@ void NodeFactory::reserve(size_t amount) {
 	iGetInstance().mNodeData.reserve(amount);
 }
 
+size_t NodeFactory::size() {
+	return iGetInstance().mNodeData.size();
+}
+
 void NodeFactory::freeAll() {
 	iGetInstance().iFreeAll();
 }

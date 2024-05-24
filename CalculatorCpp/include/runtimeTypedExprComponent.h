@@ -142,6 +142,7 @@ private:
 
 	friend class Storage;
 	friend class Evaluate;
+	friend class Parser;
 };
 
 class Storage : public BaseRuntimeTypedExprComponent {

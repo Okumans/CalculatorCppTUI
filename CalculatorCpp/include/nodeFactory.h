@@ -19,6 +19,7 @@ public:
 		enum class NodeState : int8_t {
 			Number,
 			LambdaFuntion,
+			LambdaChain,
 			Storage,
 			Operator,
 		};
@@ -50,6 +51,7 @@ public:
 	static void freeAll();
 	static bool validNode(NodePos index);
 	static void reserve(size_t amount);
+	static size_t size();
 
 private:
 	Node& iNode(NodePos index);

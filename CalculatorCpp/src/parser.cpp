@@ -29,7 +29,7 @@
 #define N_EVALUATE
 #include "initialization.h"
 
-constexpr size_t STACK_CALL_LIMIT = 500;
+constexpr size_t STACK_CALL_LIMIT = 200;
 
 static int randomNumber() {
 	static std::mt19937 gen(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
@@ -160,12 +160,12 @@ std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes
 		else if (!numberBuffer.empty() &&
 			((lexeme == "." && foundDecimalPoint) ||
 				(lexeme == "-" && foundMinusSign) ||
-				//(!(!result.empty() &&
-				//	((mOperatorEvalTypes.contains(result.back()) &&
-				//		(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
-				//			mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
-				//		mBracketsOperators.openBracketsOperators.contains(result.back())) ||
-				//	result.empty())) ||
+				(!(!result.empty() &&
+					((mOperatorEvalTypes.contains(result.back()) &&
+						(mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Infix ||
+							mOperatorEvalTypes.at(result.back()) == OperatorEvalType::Postfix)) ||
+						mBracketsOperators.openBracketsOperators.contains(result.back())) ||
+					result.empty())) ||
 				(std::isdigit(lexeme[0]) && strictedIsNumber(numberBuffer, true)) || // curr is a number, buffer is a "number"
 				(std::isdigit(lexeme[0]) && !isNumber(numberBuffer)) || // curr is a number, buffer is not a number
 				(!std::isdigit(lexeme[0]) && isNumber(numberBuffer)) || // curr is not a number, buffer is a number
@@ -223,12 +223,13 @@ static Result<T> topPopNotEmpty(std::stack<T>& stk) {
 	return temp;
 }
 
-Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::vector<Lexeme>& parsedLexemes) const {
+Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::vector<Lexeme>& parsedLexemes, const std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunction) const {
 	if (!mIsParserReady)
 		return RuntimeError<ParserNotReadyError>("Please run parserReady() first!, To make sure that parser is ready.");
 
 	std::stack<NodeFactory::NodePos> resultStack;
 	std::stack<Lexeme> operatorStack;
+	std::unordered_map<NodeFactory::NodePos, RuntimeType> specialTypes;
 
 	const auto checkOperatorEvalTypeState = [this](const Lexeme& lexeme, OperatorEvalType checkState) {
 		return (mOperatorEvalTypes.contains(lexeme) && (mOperatorEvalTypes.at(lexeme) == checkState));
@@ -310,11 +311,39 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 				auto operatorNode = (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion ||
 					mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::Storage) ?
-					createRawExpressionOperatorTree(operatorNodeValue, mRawExpressionBracketEvalTypes.at(openBracket)) :
+					createRawExpressionOperatorTree(operatorNodeValue, mRawExpressionBracketEvalTypes.at(openBracket), EvaluatorLambdaFunction) :
 					NodeFactory::create(operatorNodeValue);
 				EXCEPT_RETURN(operatorNode);
 
-				resultStack.push(operatorNode.getValue());
+				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), EvaluatorLambdaFunction) };
+				EXCEPT_RETURN(operatorNodeReturnTypeResult);
+
+				RuntimeType operatorNodeReturnType{ operatorNodeReturnTypeResult.moveValue() };
+
+				if (resultStack.size() && specialTypes.contains(resultStack.top()) &&
+					NodeFactory::node(resultStack.top()).nodestate == NodeFactory::Node::NodeState::LambdaFuntion &&
+					RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(specialTypes.at(resultStack.top()))) == (
+						std::holds_alternative<RuntimeCompoundType>(operatorNodeReturnType) ? ((
+							std::get<RuntimeCompoundType>(operatorNodeReturnType).Type == RuntimeBaseType::_Storage &&
+							std::get<RuntimeCompoundType>(operatorNodeReturnType).Children.size() == 1)
+						? std::get<RuntimeCompoundType>(operatorNodeReturnType).Children[0]
+						: std::get<RuntimeCompoundType>(operatorNodeReturnType)) : operatorNodeReturnType)) 
+				{
+					Result<Lambda::LambdaArguments, std::runtime_error> evaluatedResult{
+						Lambda::_NodeExpressionsEvaluator({resultStack.top(), operatorNode.getValue()}, EvaluatorLambdaFunction)
+					};
+					EXCEPT_RETURN(evaluatedResult);
+
+					NodeFactory::NodePos evaluateNodePos{ evaluatedResult.getValue()[0].toNodeExpression() };
+					specialTypes[evaluateNodePos] = evaluatedResult.getValue()[0].getDetailTypeHold();
+					resultStack.pop();
+					resultStack.push(evaluateNodePos);
+				}
+
+				else {
+					specialTypes[operatorNode.getValue()] = std::move(operatorNodeReturnType);
+					resultStack.push(operatorNode.getValue());
+				}
 			}
 
 			while (!operatorStack.empty() && operatorStack.top() != openBracket) {
@@ -489,7 +518,7 @@ std::optional<std::runtime_error> Parser::getLambdaType(std::vector<std::pair<st
 	return std::nullopt;
 }
 
-Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType) const
+Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, const std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunction) const
 {
 	std::string_view rawVariablesExpression;
 	std::string_view rawOperationTree(RawExpression);
@@ -522,7 +551,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 	auto parsedNumberOperationTree = parseNumbers(operationTree);
 
 	pas._ignore_parserReady();
-	auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree);
+	auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree, EvaluatorLambdaFunction);
 	EXCEPT_RETURN(fullyParsedOperationTree);
 
 	if (RawExpressionType == NodeFactory::Node::NodeState::LambdaFuntion) {

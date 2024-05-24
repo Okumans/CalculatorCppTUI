@@ -62,7 +62,7 @@ void test(size_t basicOperationAmount) {
 	std::cout << "EVALUATOR benckmark (" << basicOperationAmount << " operations) -> ";
 	BENCHMARK_START;
 	if (!pas.parserReady().has_value()) {
-		auto root = pas.createOperatorTree(parsedResult);
+		auto root = pas.createOperatorTree(parsedResult, eval.getEvaluationLambdaFunction());
 
 		if (!root.isError()) {
 			auto rootResult = root.moveValue();
@@ -198,27 +198,30 @@ int main(int argc, char* argv[])
 
 		//std::cout << "Parsing Number: " << HighlightSyntax(ss.str().substr(0, 1000)) << "\n";
 
-		getReturnType(NodeFactory::NodePosNull, {}, false); // reset cache
+		// getReturnType(NodeFactory::NodePosNull, {}, false); // reset cache
 
 		if (!pas.parserReady().has_value()) {
-			auto root = pas.createOperatorTree(parsedResult);
+			auto root = pas.createOperatorTree(parsedResult, eval.getEvaluationLambdaFunction());
 
 			if (!root.isError()) {
 				auto rootResult{ root.moveValue() };
 				std::cout << ColorText<Color::Yellow>(" ⇒ ") << pas.printOpertatorTree(rootResult, eval.getEvaluationLambdaFunction()) << "\n";
 
+				BENCHMARK_START;
 				if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
 					std::cout << ColorText<Color::Green>(" ≡ ") << std::fixed << HighlightSyntax(result.getValue().toString()) << "\n";
 				else
 					std::cout << ColorText<Color::Red>(" (!) ") << HighlightSyntax(result.getException().what()) << "\n";
+				BENCHMARK_END;
 
-				NodeFactory::freeAll();
+				// NodeFactory::freeAll();
 			}
 			else {
 				std::cout << ColorText<Color::Red>("(!) ") << HighlightSyntax(root.getException().what()) << "\n";
 			}
 		}
 
+		std::cout << "Node amount: " << NodeFactory::size() << "\n";
 		std::cout << std::endl;
 	}
 
