@@ -116,6 +116,8 @@ public:
 	static Result<Lambda, std::runtime_error> fromFunction(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
 	static Result<Lambda, std::runtime_error> fromFunction(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction, const LambdaArguments& testArgument);
 	static Result<Lambda, std::runtime_error> fromExpressionNode(NodePos lambdaFunctionRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
+	static Lambda LambdaConstant(const std::string& functionSignature, const RuntimeTypedExprComponent& constValue);
+	static Lambda LambdaConstant(std::string&& functionSignature, RuntimeTypedExprComponent&& constValue);
 
 	template<RuntimeTypedExprComponentRequired ...Args>
 	Result<RuntimeTypedExprComponent, std::runtime_error> evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, Args&&... arguments) const;
@@ -136,6 +138,7 @@ private:
 	std::optional<std::string> mLambdaFunctionSignature;
 
 	Lambda(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
+	Lambda(std::string&& lambdaFunctionSignature, RuntimeCompoundType&& lambdaType, LambdaNotation lambdaNotation, std::function<RuntimeTypedExprComponent(LambdaArguments)>&& lambdaFunction);
 	Lambda(const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
 	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 	static Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> _NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);

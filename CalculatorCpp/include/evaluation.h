@@ -29,16 +29,13 @@ inline const std::string EvaluationFailedError::prefix = "EvaluationFailedError"
 
 class Evaluate {
 private:
-	const Parser& parser;
 	std::unordered_map<Parser::Lexeme, Lambda> mOperatorFunctions;
 
 public:
-	Evaluate(const Parser& parser);
-	Evaluate(const Parser& parser, const Evaluate& other);
 	void addOperatorFunction(const Lambda& operatorDefinition);
 	void addOperatorFunction(Lambda&& operatorDefinition);
 	Result<RuntimeTypedExprComponent> evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots) const;
-	const std::unordered_map<Parser::Lexeme, Lambda>& getEvaluationLambdaFunction() const;
+	std::unordered_map<Parser::Lexeme, Lambda>& getEvaluationLambdaFunction();
 };
 
 #include "evaluation_impl.h"

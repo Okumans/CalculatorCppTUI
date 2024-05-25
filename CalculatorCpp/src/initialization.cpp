@@ -173,7 +173,6 @@ void initializeParser(Parser& parser) {
 
 	parser.setBracketOperators(mainBracketPairs);
 	parser.setOperatorLevels(mainOperatorLevels);
-	parser.setOperatorEvalType(mainOperatorEvalType);
 
 	parser.setRawExpressionBracketEvalType({ {"{", NodeFactory::Node::NodeState::LambdaFuntion} });
 	parser.setRawExpressionBracketEvalType({ {"[", NodeFactory::Node::NodeState::Storage} });

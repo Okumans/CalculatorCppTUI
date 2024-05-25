@@ -34,11 +34,12 @@ void test(size_t basicOperationAmount) {
 	Lexer lex;
 	initializeLexer(lex);
 
-	Parser pas;
+	Evaluate eval;
+	initializeEvaluator(eval);
+
+	Parser pas(eval.getEvaluationLambdaFunction());
 	initializeParser(pas);
 
-	Evaluate eval(pas);
-	initializeEvaluator(eval);
 
 
 	std::cout << "LEXER benckmark (" << basicOperationAmount << " operations) -> ";
@@ -152,11 +153,12 @@ int main(int argc, char* argv[])
 	Lexer lex;
 	initializeLexer(lex);
 
-	Parser pas;
+	Evaluate eval;
+	initializeEvaluator(eval);
+
+	Parser pas(eval.getEvaluationLambdaFunction());
 	initializeParser(pas);
 
-	Evaluate eval(pas);
-	initializeEvaluator(eval);
 
 
 	std::string input{};

@@ -10,6 +10,7 @@
 #include "result.h"
 #include "lexer.h"
 #include "runtimeType.h"
+#include "runtimeTypedExprComponent.h"
 #include "nodeFactory.h"
 
 struct ParserNotReadyError {
@@ -38,17 +39,18 @@ public:
 private:
 	Brackets mBracketsOperators;
 	std::unordered_map<Lexeme, OperatorLevel> mOperatorLevels;
-	std::unordered_map<Lexeme, OperatorEvalType> mOperatorEvalTypes;
+	std::unordered_map<Lexeme, Lambda>& mEvaluatorLambdaFunction;
 	std::unordered_map<Lexeme, NodeFactory::Node::NodeState> mRawExpressionBracketEvalTypes;
 	bool mIsParserReady{ false };
 
 public:
+	Parser(std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunctions);
 	static bool strictedIsNumber(const std::string& lexeme, bool veryStrict = false);
 
 	// main functions
 	std::vector<Lexeme> parseNumbers(const std::vector<Lexeme>& lexemes) const;
-	Result<std::vector<NodeFactory::NodePos>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, const std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunction) const;
-	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, const std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunction) const;
+	Result<std::vector<NodeFactory::NodePos>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction) const;
+	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction) const;
 	NodeFactory::NodePos createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const;
 	
 	// setters
@@ -56,13 +58,11 @@ public:
 	void setOperatorLevels(const std::vector<std::pair<Lexeme, OperatorLevel>>& operatorPairs);
 	void addOperatorLevel(const Lexeme& operatorLexeme, OperatorLevel operatorLevel);
 	void addBracketOperator(const Lexeme& openBracket, const Lexeme& closeBracket);
-	void setOperatorEvalType(const std::vector<std::pair<Lexeme, OperatorEvalType>>& operatorEvalTypePairs);
-	void addOperatorEvalType(const Lexeme& operatorLexme, OperatorEvalType operatorEvalType);
 	void setRawExpressionBracketEvalType(const std::vector<std::pair<Lexeme, NodeFactory::Node::NodeState>>& rawExpressionBracketEvalTypePairs);
 	void addRawExpressionBracketEvalType(const Lexeme& openBracketLexeme, NodeFactory::Node::NodeState rawExpressionBracketEvalType);
 	
 	bool isOperator(const Lexeme& lexeme) const;
-	OperatorEvalType getOperatorType(const Lexeme& oprLexeme) const;
+	Lambda::LambdaNotation getNotation(const Lexeme& oprLexeme) const;
 	OperatorLevel getOperatorLevel(const Lexeme& oprLexeme) const;
 	std::string printOpertatorTree(std::vector<NodeFactory::NodePos> trees, const std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunctions) const;
 
