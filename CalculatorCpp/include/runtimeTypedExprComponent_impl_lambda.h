@@ -286,7 +286,7 @@ inline NodeFactory::NodePos Lambda::generateExpressionTree() const {
 	return operatorNode;
 }
 
-static void findAndReplaceConstant(NodeFactory::NodePos root, const std::unordered_map<std::string, NodeFactory::NodePos>& replacement) {
+inline void Lambda::findAndReplaceConstant(NodeFactory::NodePos root, const std::unordered_map<std::string, NodeFactory::NodePos>& replacement) {
 	std::stack<NodeFactory::NodePos> nodes;
 	nodes.push(root);
 

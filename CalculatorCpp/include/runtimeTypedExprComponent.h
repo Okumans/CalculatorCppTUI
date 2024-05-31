@@ -142,6 +142,7 @@ private:
 	Lambda(const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
 	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 	static Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> _NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
+	static void findAndReplaceConstant(NodeFactory::NodePos root, const std::unordered_map<std::string, NodeFactory::NodePos>& replacement);
 
 	friend class Storage;
 	friend class Evaluate;

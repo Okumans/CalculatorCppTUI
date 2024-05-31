@@ -52,7 +52,7 @@ static bool isNumber(const std::string& lexeme) {
 	return std::isdigit(lexeme[lexeme.front() == '-' || lexeme.front() == '.']);
 }
 
-Parser::Parser(std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunctions) :mEvaluatorLambdaFunction{EvaluatorLambdaFunctions} {}
+Parser::Parser(std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunctions) :mEvaluatorLambdaFunction{ EvaluatorLambdaFunctions } {}
 
 bool Parser::strictedIsNumber(const std::string& lexeme, bool veryStrict) {
 	if (lexeme.empty())
@@ -217,11 +217,12 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 	std::stack<NodeFactory::NodePos> resultStack;
 	std::stack<Lexeme> operatorStack;
-	std::unordered_map<NodeFactory::NodePos, RuntimeType> specialTypes;
+	std::unordered_map<NodeFactory::NodePos, RuntimeType> cachedNodeTypes;
+	std::unordered_map<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>> argumentReplacementTable; // {LambdaHeadNode: [replacementNodes...]}
 
 	const auto checkOperatorEvalTypeState = [&EvaluatorLambdaFunction](const Lexeme& lexeme, Lambda::LambdaNotation checkState) {
 		return (EvaluatorLambdaFunction.contains(lexeme) && (EvaluatorLambdaFunction.at(lexeme).getNotation() == checkState));
-	};
+		};
 
 	for (auto it = parsedLexemes.begin(); it != parsedLexemes.end(); it++) {
 		const Parser::Lexeme parsedLexeme = *it;
@@ -305,36 +306,45 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), EvaluatorLambdaFunction) };
 				EXCEPT_RETURN(operatorNodeReturnTypeResult);
 
-				RuntimeType operatorNodeReturnType{ operatorNodeReturnTypeResult.moveValue() };
+				// Define a variable to hold the final RuntimeType
+				RuntimeType extractedOperatorNodeReturnTypeRuntimeType{ operatorNodeReturnTypeResult.moveValue() };
+				NodeFactory::NodePos extractedOperatorNode{ operatorNode.getValue() };
 
-				if (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion) {
-					const std::string lambdaName{ std::format("lambda-{}", randomNumber()) };
-					//EvaluatorLambdaFunction.emplace(lambdaName, Lambda::fromExpressionNode(operatorNode.getValue(), EvaluatorLambdaFunction).getValue());
+				// Check if the type is _Storage and there is exactly one child
+				if (RuntimeCompoundType* operatorNodeReturnTypeRuntimeCompoundType{ std::get_if<RuntimeCompoundType>(&extractedOperatorNodeReturnTypeRuntimeType) };
+					operatorNodeReturnTypeRuntimeCompoundType && operatorNodeReturnTypeRuntimeCompoundType->Type == RuntimeBaseType::_Storage &&
+					operatorNodeReturnTypeRuntimeCompoundType->Children.size() == 1) {
+					// Set the final RuntimeType to the single child
+					auto firstChildOperatorNodeReturnRuntimeType{ operatorNodeReturnTypeRuntimeCompoundType->Children[0] };
+					extractedOperatorNodeReturnTypeRuntimeType = std::move(firstChildOperatorNodeReturnRuntimeType);
+					extractedOperatorNode = NodeFactory::node(extractedOperatorNode).leftPos;
 				}
 
-				if (resultStack.size() && specialTypes.contains(resultStack.top()) &&
-					NodeFactory::node(resultStack.top()).nodestate == NodeFactory::Node::NodeState::LambdaFuntion &&
-					RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(specialTypes.at(resultStack.top()))) == (
-						std::holds_alternative<RuntimeCompoundType>(operatorNodeReturnType) ? ((
-							std::get<RuntimeCompoundType>(operatorNodeReturnType).Type == RuntimeBaseType::_Storage &&
-							std::get<RuntimeCompoundType>(operatorNodeReturnType).Children.size() == 1)
-						? std::get<RuntimeCompoundType>(operatorNodeReturnType).Children[0]
-						: std::get<RuntimeCompoundType>(operatorNodeReturnType)) : operatorNodeReturnType)) 
-				{
-					Result<Lambda::LambdaArguments, std::runtime_error> evaluatedResult{
-						Lambda::_NodeExpressionsEvaluator({resultStack.top(), operatorNode.getValue()}, EvaluatorLambdaFunction)
-					};
-					EXCEPT_RETURN(evaluatedResult);
+				//if (mRawExpressionBracketEvalTypes.at(openBracket) == NodeFactory::Node::NodeState::LambdaFuntion) {
+				//	const std::string lambdaName{ std::format("lambda-{}", randomNumber()) };
+				//	EvaluatorLambdaFunction.emplace(lambdaName, Lambda::fromExpressionNode(operatorNode.getValue(), EvaluatorLambdaFunction).getValue());
+				//}
 
-					NodeFactory::NodePos evaluateNodePos{ evaluatedResult.getValue()[0].toNodeExpression() };
-					specialTypes[evaluateNodePos] = evaluatedResult.getValue()[0].getDetailTypeHold();
+				if (resultStack.size() && cachedNodeTypes.contains(resultStack.top()) &&
+					NodeFactory::node(resultStack.top()).nodestate == NodeFactory::Node::NodeState::LambdaFuntion &&
+					RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(cachedNodeTypes.at(resultStack.top()))) == extractedOperatorNodeReturnTypeRuntimeType)
+				{
+					//Result<Lambda::LambdaArguments, std::runtime_error> evaluatedResult{
+					//	Lambda::_NodeExpressionsEvaluator({resultStack.top(), operatorNode.getValue()}, EvaluatorLambdaFunction)
+					//};
+					//EXCEPT_RETURN(evaluatedResult);
+
+					argumentReplacementTable[resultStack.top()].emplace_back(extractedOperatorNode);
+
+					/*NodeFactory::NodePos evaluateNodePos{ evaluatedResult.getValue()[0].toNodeExpression() };
+					cachedNodeTypes[evaluateNodePos] = evaluatedResult.getValue()[0].getDetailTypeHold();
 					resultStack.pop();
-					resultStack.push(evaluateNodePos);
+					resultStack.push(evaluateNodePos);*/
 				}
 
 				else {
-					specialTypes[operatorNode.getValue()] = std::move(operatorNodeReturnType);
-					resultStack.push(operatorNode.getValue());
+					cachedNodeTypes[extractedOperatorNode] = std::move(extractedOperatorNodeReturnTypeRuntimeType);
+					resultStack.push(extractedOperatorNode);
 				}
 			}
 
@@ -434,6 +444,44 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 	if (resultStack.empty())
 		return std::vector<NodeFactory::NodePos>{}; // return null
+
+	// perform the argument replacement
+	for (auto& [lambdaHeadNode, replacementNodes] : argumentReplacementTable) {
+		size_t lambdaHeadNodeParameterNumbers{ NodeFactory::node(lambdaHeadNode).utilityStorage.size() };
+
+		if (lambdaHeadNodeParameterNumbers < replacementNodes.size())
+			return RuntimeError<ParserSyntaxError>(
+				std::format(
+					"Lambda at nodeExpression {} can only hold up to {} total argument node ({} < {})",
+					lambdaHeadNode,
+					lambdaHeadNodeParameterNumbers,
+					lambdaHeadNodeParameterNumbers,
+					replacementNodes.size()
+				)
+			);
+
+		std::unordered_map<std::string, NodeFactory::NodePos> replacementForLamdaHeadNode;
+		std::vector<std::pair<std::string, RuntimeType>>& lambdaHeadNodeParameters{ NodeFactory::node(lambdaHeadNode).utilityStorage };
+		for (size_t len{ std::min(lambdaHeadNodeParameterNumbers, replacementNodes.size()) }, ind{ 0 }; ind < len; ind++) {
+			Result<RuntimeType, std::runtime_error> argumentType{ getReturnType(replacementNodes[ind], EvaluatorLambdaFunction) };
+			EXCEPT_RETURN(argumentType);
+
+			if (lambdaHeadNodeParameters[ind].second != argumentType.getValue())
+				return RuntimeError<ParserSyntaxError>(
+					std::format(
+						"Lambda at nodeExpression {}, parameter {} type {} not match with argument node {} with {} type.",
+						lambdaHeadNode,
+						lambdaHeadNodeParameters[ind].first,
+						lambdaHeadNodeParameters[ind].second,
+						replacementNodes[ind],
+						argumentType.getValue()
+					)
+				);
+
+			replacementForLamdaHeadNode.try_emplace(lambdaHeadNodeParameters[ind].first, replacementNodes[ind]);
+		}
+		Lambda::findAndReplaceConstant(lambdaHeadNode, replacementForLamdaHeadNode);
+	}
 
 	std::vector<NodeFactory::NodePos> tmp(resultStack.size(), NodeFactory::NodePosNull);
 	for (size_t i{ resultStack.size() }; i > 0; i--) {
