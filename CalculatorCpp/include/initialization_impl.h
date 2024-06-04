@@ -281,8 +281,8 @@ const Result<Lambda, std::runtime_error> lengthLambdaFunction = Lambda::fromFunc
 			return Number(0);
 
 		if (const NodeFactory::Node& pointerNode{ args[0].getNodePointer().getPointerNode() };
-			pointerNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion ||
-			pointerNode.nodestate == NodeFactory::Node::NodeState::Storage) {
+			pointerNode.nodeState == NodeFactory::Node::NodeState::LambdaFuntion ||
+			pointerNode.nodeState == NodeFactory::Node::NodeState::Storage) {
 			size_t size{ 1 };
 			NodeFactory::NodePos currNodePos{ pointerNode.rightPos };
 			while (NodeFactory::validNode(currNodePos)) {

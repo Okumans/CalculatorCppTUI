@@ -133,7 +133,7 @@ inline Storage Storage::fromArgs(Args &&...storageData) {
 }
 
 inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos storageRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions) {
-	if (!NodeFactory::validNode(storageRootNode) || NodeFactory::node(storageRootNode).nodestate != NodeFactory::Node::NodeState::Storage)
+	if (!NodeFactory::validNode(storageRootNode) || NodeFactory::node(storageRootNode).nodeState != NodeFactory::Node::NodeState::Storage)
 		return std::runtime_error("storageRootNode must be valid node with Storage nodestate.");
 
 	Result<RuntimeType, std::runtime_error> storageTypeRaw = getReturnType(storageRootNode, EvaluatorLambdaFunctions);
@@ -185,7 +185,7 @@ inline NodeFactory::NodePos Storage::generateExpressionTree() const {
 	NodePos root = NodeFactory::create();
 	NodePos tail = root;
 
-	NodeFactory::node(root).nodestate = NodeFactory::Node::NodeState::Storage;
+	NodeFactory::node(root).nodeState = NodeFactory::Node::NodeState::Storage;
 
 	if (mStroageData.empty())
 		return root;
@@ -200,6 +200,20 @@ inline NodeFactory::NodePos Storage::generateExpressionTree() const {
 	}
 
 	return root;
+}
+
+inline NodeFactory::NodePos Storage::storageLikeIteratorNext(NodePos currNodePos) {
+	if (!NodeFactory::validNode(currNodePos))
+		return NodeFactory::NodePosNull;
+	return NodeFactory::node(currNodePos).rightPos;
+}
+
+inline NodeFactory::NodePos Storage::storageLikeIteratorEnd(NodePos currNodePos) {
+	if (!NodeFactory::validNode(currNodePos))
+		return NodeFactory::NodePosNull;
+	while (NodeFactory::node(currNodePos).rightPos != NodeFactory::NodePosNull)
+		currNodePos = NodeFactory::node(currNodePos).rightPos;
+	return currNodePos;
 }
 
 inline std::string Storage::toString() const {

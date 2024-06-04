@@ -183,14 +183,14 @@ int main(int argc, char* argv[])
 			while (NodeFactory::validNode(nodePosition)) {
 				const NodeFactory::Node& nNode{ NodeFactory::node(nodePosition) };
 				std::string utilityStorageString;
-				for (const auto& [paramName, paramType] : nNode.utilityStorage) {
+				for (const auto& [paramName, paramType] : nNode.parametersWithType) {
 					utilityStorageString += paramName + ": " + RuntimeTypeToString(paramType) + ", ";
 				}
-				if (nNode.utilityStorage.size()) {
+				if (nNode.parametersWithType.size()) {
 					utilityStorageString.pop_back();
 					utilityStorageString.pop_back();
 				}
-				std::cout << std::format("Node({}): \n\t value-----\t: \"{}\" \n\t nodeState-\t: {}\n\t leftPos---\t: {} \n\t rightPos--\t: {} \n\t paramsType\t: [{}]\n", nodePosition, nNode.value, (int)nNode.nodestate, nNode.leftPos, nNode.rightPos, utilityStorageString);
+				std::cout << std::format("Node({}): \n\t value-----\t: \"{}\" \n\t nodeState-\t: {}\n\t leftPos---\t: {} \n\t rightPos--\t: {} \n\t paramsType\t: [{}]\n", nodePosition, nNode.value, (int)nNode.nodeState, nNode.leftPos, nNode.rightPos, utilityStorageString);
 				nodePosition++;
 			}
 		}

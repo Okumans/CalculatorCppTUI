@@ -25,8 +25,8 @@ public:
 		};
 
 		std::string value;
-		NodeState nodestate{ NodeState::Number };
-		std::vector<std::pair<std::string, RuntimeType>> utilityStorage;
+		NodeState nodeState{ NodeState::Number };
+		std::vector<std::pair<std::string, RuntimeType>> parametersWithType;
 
 		NodePos leftPos{ std::numeric_limits<NodePos>::max() };
 		NodePos rightPos{ std::numeric_limits<NodePos>::max() };

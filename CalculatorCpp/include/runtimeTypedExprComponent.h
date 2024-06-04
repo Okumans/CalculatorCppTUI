@@ -167,9 +167,13 @@ public:
 	static Result<Storage, std::runtime_error> fromExpressionNode(NodePos storageRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 	const RuntimeTypedExprComponent& operator[](size_t index) const;
 	const std::vector<RuntimeTypedExprComponent>& getData() const;
+
 	size_t size() const;
 	std::string toString() const override;
 	NodePos generateExpressionTree() const override;
+
+	static NodePos storageLikeIteratorNext(NodePos currNodePos); // get next storage iterator, the value of storage like iterator will be on the left Node
+	static NodePos storageLikeIteratorEnd(NodePos currNodePos); // get end storage iterator, the value of storage like iterator will be on the left Node
 
 private:
 	RuntimeCompoundType::StorageInfo mStorageInfo;

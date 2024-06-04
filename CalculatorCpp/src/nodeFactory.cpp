@@ -56,7 +56,7 @@ NodeFactory::Node& NodeFactory::Node::leftNode() {
 }
 
 bool NodeFactory::Node::operator==(const Node& other) const {
-	return (value == other.value && nodestate == other.nodestate && utilityStorage == other.utilityStorage);
+	return (value == other.value && nodeState == other.nodeState && parametersWithType == other.parametersWithType);
 }
 
 

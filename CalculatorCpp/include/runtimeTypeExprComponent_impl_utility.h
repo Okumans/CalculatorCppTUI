@@ -130,7 +130,7 @@ inline NodeFactory::NodePos RuntimeTypedExprComponent::toNodeExpression() const 
 }
 
 inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprComponent::fromNodeExpression(NodeFactory::NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions) {
-	switch (NodeFactory::Node::NodeState currNodeState{ NodeFactory::node(rootNodeExpression).nodestate })
+	switch (NodeFactory::Node::NodeState currNodeState{ NodeFactory::node(rootNodeExpression).nodeState })
 	{
 	case NodeFactory::Node::NodeState::LambdaFuntion:
 	{
@@ -258,15 +258,15 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 				resultMap[currNodePos] = *EvaluatorLambdaFunctions.at(currNode.value).getLambdaInfo().ReturnType;
 			}
 
-			else if (currNode.nodestate == NodeFactory::Node::NodeState::Storage)
+			else if (currNode.nodeState == NodeFactory::Node::NodeState::Storage)
 				resultMap[currNodePos] = RuntimeBaseType::_Storage; // null storage
 
 			else
 				resultMap[currNodePos] = RuntimeBaseType::Number;
 		}
 
-		else if (currNode.nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
-			std::vector<std::pair<std::string, RuntimeType>> parameters{ currNode.utilityStorage };
+		else if (currNode.nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
+			std::vector<std::pair<std::string, RuntimeType>> parameters{ currNode.parametersWithType };
 			std::vector<RuntimeType> returnTypes;
 			std::vector<RuntimeType> lambdaParameterType;
 			lambdaParameterType.reserve(parameters.size());
@@ -347,7 +347,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 				resultMap[currNodePos] = RuntimeCompoundType::Lambda(std::move(returnTypes.back()), RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(lambdaParameterType)));
 		}
 
-		else if (currNode.nodestate == NodeFactory::Node::NodeState::Storage) {
+		else if (currNode.nodeState == NodeFactory::Node::NodeState::Storage) {
 			std::vector<RuntimeType> arguments;
 
 			NodeFactory::NodePos currArgNodePos{ currNodePos };

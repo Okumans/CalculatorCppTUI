@@ -167,7 +167,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 		return RuntimeError<RuntimeTypeError>("The conversion from NodeExpression to Lambda failed due to an invalid NodeExpression.",
 			"Lambda::fromExpressionNode");
 
-	if (NodeFactory::node(lambdaFunctionRootNode).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
+	if (NodeFactory::node(lambdaFunctionRootNode).nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
 		Result<RuntimeType, std::runtime_error>&& returnTypeRaw{ getReturnType(lambdaFunctionRootNode, EvaluatorLambdaFunctions) };
 
 		if (returnTypeRaw.isError())
@@ -178,8 +178,8 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 				"Lambda::fromExpressionNode");
 
 		std::vector<RuntimeType> parameterTypes;
-		parameterTypes.reserve(NodeFactory::node(lambdaFunctionRootNode).utilityStorage.size());
-		for (const auto& [_, parameterType] : NodeFactory::node(lambdaFunctionRootNode).utilityStorage)
+		parameterTypes.reserve(NodeFactory::node(lambdaFunctionRootNode).parametersWithType.size());
+		for (const auto& [_, parameterType] : NodeFactory::node(lambdaFunctionRootNode).parametersWithType)
 			parameterTypes.emplace_back(parameterType);
 
 		return Lambda(
@@ -189,7 +189,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 		);
 	}
 
-	else if (NodeFactory::node(lambdaFunctionRootNode).nodestate == NodeFactory::Node::NodeState::Operator) {
+	else if (NodeFactory::node(lambdaFunctionRootNode).nodeState == NodeFactory::Node::NodeState::Operator) {
 		if (EvaluatorLambdaFunctions.contains(NodeFactory::node(lambdaFunctionRootNode).value))
 			return EvaluatorLambdaFunctions.at(NodeFactory::node(lambdaFunctionRootNode).value);
 
@@ -200,7 +200,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 	}
 	return RuntimeError<LambdaConstructionError>(
 		std::format(R"(NodeExpression NodeState should be LambdaFunction("1") or Operator("3") not "{}" (as a number))",
-			static_cast<int>(NodeFactory::node(lambdaFunctionRootNode).nodestate)),
+			static_cast<int>(NodeFactory::node(lambdaFunctionRootNode).nodeState)),
 		"Lambda::fromExpressionNode");
 }
 
@@ -234,7 +234,7 @@ inline Result<NodeFactory::NodePos, std::runtime_error> Lambda::getExpressionTre
 
 	if (std::holds_alternative<std::shared_ptr<std::function<RuntimeTypedExprComponent(LambdaArguments)>>>(mLambdaFunction)) {
 		const NodePos operatorNode{ NodeFactory::create(mLambdaFunctionSignature.value()) };
-		NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
+		NodeFactory::node(operatorNode).nodeState = NodeFactory::Node::NodeState::Operator;
 
 		if (mLambdaNotation == LambdaNotation::Infix) {
 			const NodePos leftArgument{ arguments[0].toNodeExpression() };
@@ -282,7 +282,7 @@ inline NodeFactory::NodePos Lambda::generateExpressionTree() const {
 		return std::get<NodePos>(mLambdaFunction);
 
 	const NodePos operatorNode{ NodeFactory::create(mLambdaFunctionSignature.value()) };
-	NodeFactory::node(operatorNode).nodestate = NodeFactory::Node::NodeState::Operator;
+	NodeFactory::node(operatorNode).nodeState = NodeFactory::Node::NodeState::Operator;
 	return operatorNode;
 }
 
@@ -356,7 +356,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 	std::unordered_map<std::string, NodePos> parameterConstantsReplacement;
 
 	const std::vector<std::pair<std::string, RuntimeType>>& parameters{
-		NodeFactory::node(std::get<NodePos>(mLambdaFunction)).utilityStorage
+		NodeFactory::node(std::get<NodePos>(mLambdaFunction)).parametersWithType
 	}; // allowed, usage doesn't involve recusive function such as Lambda::evaluate or Lambda::_NodeExpressionEvaluate
 
 	for (size_t ind{ 0 }, len{ parameters.size() }; ind < len; ind++) {
@@ -438,8 +438,8 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 	while (!rootNodeExpressions.empty()) {
 		NodePos currNode = rootNodeExpressions.back(); rootNodeExpressions.pop_back();
 		NodeFactory::Node currNodeNode = NodeFactory::node(currNode);
-		if (NodeFactory::node(currNode).nodestate == NodeFactory::Node::NodeState::LambdaFuntion ||
-			(NodeFactory::node(currNode).nodestate == NodeFactory::Node::NodeState::Operator && isLeafNode(currNode))) {
+		if (NodeFactory::node(currNode).nodeState == NodeFactory::Node::NodeState::LambdaFuntion ||
+			(NodeFactory::node(currNode).nodeState == NodeFactory::Node::NodeState::Operator && isLeafNode(currNode))) {
 			Result<Lambda, std::runtime_error> lambdaFunctionResult{ Lambda::fromExpressionNode(currNode, EvaluatorLambdaFunctions) };
 			if (lambdaFunctionResult.isError())
 				return RuntimeError<LambdaEvaluationError>(
@@ -452,7 +452,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 				);
 
 			// is a operator so, argument doesnt need to be a storage
-			if (NodeFactory::node(currNode).nodestate == NodeFactory::Node::NodeState::Operator &&
+			if (NodeFactory::node(currNode).nodeState == NodeFactory::Node::NodeState::Operator &&
 				isLeafNode(currNode) &&
 				lambdaFunctionResult.getValue().getNotation() == Lambda::LambdaNotation::Prefix &&
 				evaluationResults.size()) {
@@ -480,7 +480,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 			continue;
 		}
 
-		if (NodeFactory::node(currNode).nodestate == NodeFactory::Node::NodeState::Storage) {
+		if (NodeFactory::node(currNode).nodeState == NodeFactory::Node::NodeState::Storage) {
 			Result<Storage, std::runtime_error> storageResult{
 				Storage::fromExpressionNode(currNode, EvaluatorLambdaFunctions) };
 
@@ -572,7 +572,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 		if (evaluationResult.getValue().getTypeHolded() == RuntimeBaseType::_Storage &&
 			evaluationResults.size() && evaluationResults.back().getTypeHolded() == RuntimeBaseType::_Lambda &&
 			evaluationResults.back().getLambda().getNotation() == LambdaNotation::Postfix &&
-			NodeFactory::node(evaluationResults.back().getLambda().getNodeExpression()).nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
+			NodeFactory::node(evaluationResults.back().getLambda().getNodeExpression()).nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
 			Result<RuntimeTypedExprComponent, std::runtime_error> evaluationEvaluationResult{
 				evaluationResults.back().getLambda().evaluate(EvaluatorLambdaFunctions, evaluationResult.getValue().getStorage().getData())
 			};
@@ -595,7 +595,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 
 		if (evaluationResults.size() && evaluationResults.back().getTypeHolded() == RuntimeBaseType::_Lambda &&
 			evaluationResults.back().getLambda().getNotation() == LambdaNotation::Postfix &&
-			NodeFactory::node(evaluationResults.back().getLambda().getNodeExpression()).nodestate == NodeFactory::Node::NodeState::Operator) {
+			NodeFactory::node(evaluationResults.back().getLambda().getNodeExpression()).nodeState == NodeFactory::Node::NodeState::Operator) {
 			Result<RuntimeTypedExprComponent, std::runtime_error> evaluationEvaluationResult{
 				evaluationResults.back().getLambda().evaluate(EvaluatorLambdaFunctions, evaluationResult.moveValue())
 			};
@@ -618,7 +618,7 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 		// is a operator (not runtime user-create lambda function)
 		if (evaluationResults.size() && evaluationResults.back().getTypeHolded() == RuntimeBaseType::_Lambda &&
 			evaluationResults.back().getLambda().getNotation() == LambdaNotation::Infix &&
-			NodeFactory::node(evaluationResults.back().getLambda().getNodeExpression()).nodestate == NodeFactory::Node::NodeState::Operator) {
+			NodeFactory::node(evaluationResults.back().getLambda().getNodeExpression()).nodeState == NodeFactory::Node::NodeState::Operator) {
 			if (evaluationResults.size() < 2)
 				return RuntimeError<LambdaEvaluationError>(
 					R"(When evaluating the infix operator lambda function "{}", but argument size is not correct (2 != 1))",
@@ -675,7 +675,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			if (currNode->value == "." || currNode->value == "-.")
 				resultMap[currNodePos] = 0;
 
-			else if (currNode->nodestate == NodeFactory::Node::NodeState::Storage)
+			else if (currNode->nodeState == NodeFactory::Node::NodeState::Storage)
 				resultMap[currNodePos] = Storage::NullStorage();
 
 			else if (EvaluatorLambdaFunctions.contains(currNode->value) &&
@@ -701,11 +701,11 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				resultMap[currNodePos] = std::stold(currNode->value);
 		}
 
-		else if (currNode->nodestate == NodeFactory::Node::NodeState::LambdaFuntion) {
+		else if (currNode->nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
 			std::vector<NodeFactory::NodePos> expressions;
 
 			bool evalutateState = true;
-			for (const auto& [parameterName, _] : currNode->utilityStorage)
+			for (const auto& [parameterName, _] : currNode->parametersWithType)
 				evalutateState = evalutateState && EvaluatorLambdaFunctions.contains(parameterName);
 
 			if (!evalutateState) {
@@ -753,7 +753,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			}
 		}
 
-		else if (currNode->nodestate == NodeFactory::Node::NodeState::Storage) {
+		else if (currNode->nodeState == NodeFactory::Node::NodeState::Storage) {
 			std::vector<RuntimeTypedExprComponent> arguments;
 
 			NodeFactory::NodePos currArgNodePos{ currNodePos };

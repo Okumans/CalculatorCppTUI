@@ -50,8 +50,8 @@ public:
 	// main functions
 	std::vector<Lexeme> parseNumbers(const std::vector<Lexeme>& lexemes) const;
 	Result<std::vector<NodeFactory::NodePos>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction) const;
-	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction) const;
-	NodeFactory::NodePos createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const;
+	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes) const;
+	std::pair<NodeFactory::NodePos, NodeFactory::NodePos> createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const; // return pair of [head, tail]
 	
 	// setters
 	void setBracketOperators(const std::vector<std::pair<Lexeme, Lexeme>>& bracketPairs);
