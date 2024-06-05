@@ -20,7 +20,7 @@ inline NodePointer::NodePointer() :
 {}
 
 inline bool NodePointer::isTypeValid(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction) const {
-	if (Result<RuntimeType, std::runtime_error> targetType{ getReturnType(mNodeExpression, EvaluatorLambdaFunction) }; targetType.isError())
+	if (Result<RuntimeType, std::runtime_error> targetType{ getReturnType(mNodeExpression, EvaluatorLambdaFunction, &NodeFactory::getNodesCachedType()) }; targetType.isError())
 		return false;
 	return true;
 }

@@ -224,14 +224,9 @@ inline bool _fastCheckRuntimeTypeArgumentsType(const RuntimeType& baseType, cons
 	return true;
 }
 
-inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, bool useCache) {
-	static std::unordered_map<NodeFactory::NodePos, RuntimeType> nodeTypeCache;
-
-	if (!useCache) // reset cache
-		nodeTypeCache.clear();
-
-	if (useCache && nodeTypeCache.contains(rootExpressionNode))
-		return nodeTypeCache[rootExpressionNode];
+inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, std::unordered_map<NodeFactory::NodePos, RuntimeType>* nodesTypeCache) {
+	if (nodesTypeCache && nodesTypeCache->contains(rootExpressionNode))
+		return nodesTypeCache->at(rootExpressionNode);
 
 	std::stack<NodeFactory::NodePos> operationStack;
 	std::unordered_map<NodeFactory::NodePos, RuntimeType> resultMap;
@@ -444,7 +439,8 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 	if (!resultMap.contains(rootExpressionNode))
 		return std::runtime_error("failed to find return type.");
 
-	nodeTypeCache[rootExpressionNode] = resultMap[rootExpressionNode];
+	if (nodesTypeCache)
+		nodesTypeCache->insert_or_assign(rootExpressionNode, resultMap[rootExpressionNode]);
 
 	return resultMap[rootExpressionNode];
 }

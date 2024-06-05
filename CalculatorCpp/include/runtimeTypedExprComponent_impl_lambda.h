@@ -168,7 +168,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 			"Lambda::fromExpressionNode");
 
 	if (NodeFactory::node(lambdaFunctionRootNode).nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
-		Result<RuntimeType, std::runtime_error>&& returnTypeRaw{ getReturnType(lambdaFunctionRootNode, EvaluatorLambdaFunctions) };
+		Result<RuntimeType, std::runtime_error>&& returnTypeRaw{ getReturnType(lambdaFunctionRootNode, EvaluatorLambdaFunctions, &NodeFactory::getNodesCachedType()) };
 
 		if (returnTypeRaw.isError())
 			return RuntimeError<RuntimeTypeError>(
@@ -210,7 +210,7 @@ inline Lambda Lambda::LambdaConstant(std::string&& functionSignature, RuntimeTyp
 		std::move(functionSignature),
 		RuntimeCompoundType::Lambda(constValue.getDetailTypeHold(), RuntimeBaseType::_Storage),
 		LambdaNotation::Constant,
-		[constValue = std::move(constValue)](const LambdaArguments&) -> RuntimeTypedExprComponent {
+		[constValue = std::move(constValue)](const LambdaArguments&) {
 			return constValue;
 		}
 	);
@@ -222,7 +222,7 @@ inline Lambda Lambda::LambdaConstant(const std::string& functionSignature, const
 		functionSignature,
 		RuntimeCompoundType::Lambda(constValue.getDetailTypeHold(), RuntimeBaseType::_Storage),
 		LambdaNotation::Constant,
-		[constValue](const LambdaArguments&) -> RuntimeTypedExprComponent {
+		[constValue](const LambdaArguments&) {
 			return constValue;
 		}
 	);

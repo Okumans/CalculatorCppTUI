@@ -19,7 +19,6 @@ public:
 		enum class NodeState : int8_t {
 			Number,
 			LambdaFuntion,
-			LambdaChain,
 			Storage,
 			Operator,
 		};
@@ -41,6 +40,7 @@ public:
 private:
 	NodeFactory() = default;
 	std::vector<Node> mNodeData;
+	std::unordered_map<NodePos, RuntimeType> mNodesCachedType;
 
 public:
 	NodeFactory(const NodeFactory& other) = delete;
@@ -52,6 +52,7 @@ public:
 	static bool validNode(NodePos index);
 	static void reserve(size_t amount);
 	static size_t size();
+	static std::unordered_map<NodePos, RuntimeType>& getNodesCachedType();
 
 private:
 	Node& iNode(NodePos index);

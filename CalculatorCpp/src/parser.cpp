@@ -226,7 +226,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 	std::stack<NodeFactory::NodePos> resultStack;
 	std::stack<Lexeme> operatorStack;
-	std::unordered_map<NodeFactory::NodePos, RuntimeType> cachedNodeTypes;
+	std::unordered_map<NodeFactory::NodePos, RuntimeType>& cachedNodeTypes{ NodeFactory::getNodesCachedType() };
 	std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> lambdaHeadNodes;
 
 	//std::unordered_map<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>> argumentReplacementTable; // {LambdaHeadNode: [replacementNodes...]}
@@ -314,28 +314,28 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 					NodeFactory::create(operatorNodeValue) };
 				EXCEPT_RETURN(operatorNode);
 
-				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), EvaluatorLambdaFunction) };
+				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), EvaluatorLambdaFunction, &cachedNodeTypes) };
 				EXCEPT_RETURN(operatorNodeReturnTypeResult);
-
-				// Define a variable to hold the final RuntimeType
-				RuntimeType extractedOperatorNodeReturnTypeRuntimeType{ operatorNodeReturnTypeResult.moveValue() };
-				NodeFactory::NodePos extractedOperatorNode{ operatorNode.getValue() };
-
-				// Check if the type is _Storage and there is exactly one child
-				if (RuntimeCompoundType* operatorNodeReturnTypeRuntimeCompoundType{ std::get_if<RuntimeCompoundType>(&extractedOperatorNodeReturnTypeRuntimeType) };
-					operatorNodeReturnTypeRuntimeCompoundType && operatorNodeReturnTypeRuntimeCompoundType->Type == RuntimeBaseType::_Storage &&
-					operatorNodeReturnTypeRuntimeCompoundType->Children.size() == 1) {
-					// Set the final RuntimeType to the single child
-					auto firstChildOperatorNodeReturnRuntimeType{ operatorNodeReturnTypeRuntimeCompoundType->Children[0] };
-					extractedOperatorNodeReturnTypeRuntimeType = std::move(firstChildOperatorNodeReturnRuntimeType);
-					extractedOperatorNode = getLambdaHeadNodeIfIsLambda(NodeFactory::node(extractedOperatorNode).leftPos, lambdaHeadNodes);
-				}
 
 				if (NodeFactory::NodePos topStackLambdaFunction{ resultStack.size() ? lambdaHeadNodes.at(resultStack.top()) : NodeFactory::NodePosNull };
 					NodeFactory::validNode(topStackLambdaFunction) && cachedNodeTypes.contains(topStackLambdaFunction) &&
 					NodeFactory::node(topStackLambdaFunction).nodeState == NodeFactory::Node::NodeState::LambdaFuntion &&
 					NodeFactory::node(operatorNode.getValue()).nodeState == NodeFactory::Node::NodeState::Storage)
 				{
+					// Define a variable to hold the final RuntimeType
+					RuntimeType extractedOperatorNodeReturnTypeRuntimeType{ operatorNodeReturnTypeResult.moveValue() };
+					NodeFactory::NodePos extractedOperatorNode{ operatorNode.getValue() };
+
+					// Check if the type is _Storage and there is exactly one child
+					if (RuntimeCompoundType* operatorNodeReturnTypeRuntimeCompoundType{ std::get_if<RuntimeCompoundType>(&extractedOperatorNodeReturnTypeRuntimeType) };
+						operatorNodeReturnTypeRuntimeCompoundType && operatorNodeReturnTypeRuntimeCompoundType->Type == RuntimeBaseType::_Storage &&
+						operatorNodeReturnTypeRuntimeCompoundType->Children.size() == 1) {
+						// Set the final RuntimeType to the single child
+						auto firstChildOperatorNodeReturnRuntimeType{ operatorNodeReturnTypeRuntimeCompoundType->Children[0] };
+						extractedOperatorNodeReturnTypeRuntimeType = std::move(firstChildOperatorNodeReturnRuntimeType);
+						extractedOperatorNode = getLambdaHeadNodeIfIsLambda(NodeFactory::node(extractedOperatorNode).leftPos, lambdaHeadNodes);
+					}
+
 					if (RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(cachedNodeTypes.at(topStackLambdaFunction))) != extractedOperatorNodeReturnTypeRuntimeType)
 						return RuntimeError<ParserSyntaxError>(
 							std::format(
@@ -367,13 +367,14 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 					Lambda::findAndReplaceConstant(topStackLambdaFunction, storageNodeForReplacement);
 
-					if (NodeFactory::NodePos endLambdaExpression{ NodeFactory::node(Storage::storageLikeIteratorEnd(topStackLambdaFunction)).leftPos }; NodeFactory::node(endLambdaExpression).nodeState == NodeFactory::Node::NodeState::LambdaFuntion)
-						lambdaHeadNodes.insert_or_assign(resultStack.top(), endLambdaExpression);
+					//if (NodeFactory::NodePos endLambdaExpression{ NodeFactory::node(Storage::storageLikeIteratorEnd(topStackLambdaFunction)).leftPos }; NodeFactory::node(endLambdaExpression).nodeState == NodeFactory::Node::NodeState::LambdaFuntion)
+					NodeFactory::NodePos endLambdaExpression{ NodeFactory::node(Storage::storageLikeIteratorEnd(topStackLambdaFunction)).leftPos };
+					lambdaHeadNodes.insert_or_assign(resultStack.top(), endLambdaExpression);
 				}
 
 				else {
-					cachedNodeTypes[extractedOperatorNode] = std::move(extractedOperatorNodeReturnTypeRuntimeType);
-					resultStack.push(extractedOperatorNode);
+					cachedNodeTypes[operatorNode.getValue()] = operatorNodeReturnTypeResult.moveValue();
+					resultStack.push(operatorNode.getValue());
 				}
 			}
 

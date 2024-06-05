@@ -136,7 +136,7 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 	if (!NodeFactory::validNode(storageRootNode) || NodeFactory::node(storageRootNode).nodeState != NodeFactory::Node::NodeState::Storage)
 		return std::runtime_error("storageRootNode must be valid node with Storage nodestate.");
 
-	Result<RuntimeType, std::runtime_error> storageTypeRaw = getReturnType(storageRootNode, EvaluatorLambdaFunctions);
+	Result<RuntimeType, std::runtime_error> storageTypeRaw = getReturnType(storageRootNode, EvaluatorLambdaFunctions, &NodeFactory::getNodesCachedType());
 	EXCEPT_RETURN(storageTypeRaw);
 
 	if (storageTypeRaw.getValue() == RuntimeBaseType::_Storage)

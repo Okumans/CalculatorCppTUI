@@ -26,7 +26,6 @@ struct LambdaEvaluationError {
 };
 inline const std::string LambdaEvaluationError::prefix = "LambdaEvaluationError";
 
-
 struct StorageEvaluationError {
 	static const std::string prefix;
 };
@@ -49,7 +48,6 @@ public:
 			_setNodeExpression(generateExpressionTree());
 		return mNodeExpression;
 	}
-	
 
 protected:
 	RuntimeType mType;
@@ -79,7 +77,7 @@ protected:
 
 std::vector<std::string_view> splitString(std::string_view in, char sep);
 bool _fastCheckRuntimeTypeArgumentsType(const RuntimeType& baseType, const std::vector<RuntimeTypedExprComponent>& argumentsCheckType);
-Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, bool useCache = true);
+Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, std::unordered_map<NodeFactory::NodePos, RuntimeType>* nodesTypeCache = nullptr);
 
 class Number : public BaseRuntimeTypedExprComponent {
 public:
@@ -203,7 +201,6 @@ public:
 	// BaseRuntimeTypedExprComponents general feature implementors
 	std::string toString() const override;
 	NodePos generateExpressionTree() const override;
-
 };
 
 class RuntimeTypedExprComponent : public std::variant<Number, Storage, Lambda, NodePointer> {
@@ -223,7 +220,7 @@ public:
 
 	// static constructor
 	static Result<RuntimeTypedExprComponent, std::runtime_error> fromNodeExpression(NodeFactory::NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
-	
+
 	// getters
 	const Number& getNumber() const;
 	const Lambda& getLambda() const;
@@ -234,20 +231,19 @@ public:
 
 	// operator getter
 	const RuntimeTypedExprComponent& operator[](size_t index) const;
-	
+
 	// BaseRuntimeTypedExprComponents general feature implementors
 	std::string toString() const;
 	NodeFactory::NodePos toNodeExpression() const;
-	
+
 	// equality operators
 	RuntimeTypedExprComponent& operator=(const RuntimeTypedExprComponent& other);
 	RuntimeTypedExprComponent& operator=(RuntimeTypedExprComponent&& other) noexcept;
-	
+
 	// ostream operator
 	friend std::ostream& operator<<(std::ostream& os, const RuntimeTypedExprComponent& rttexcp);
 private:
 	RuntimeBaseType mStoredType;
-
 };
 
 template <>

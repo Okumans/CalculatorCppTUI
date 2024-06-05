@@ -41,6 +41,10 @@ size_t NodeFactory::size() {
 	return iGetInstance().mNodeData.size();
 }
 
+std::unordered_map<NodeFactory::NodePos, RuntimeType>& NodeFactory::getNodesCachedType() {
+	return iGetInstance().mNodesCachedType;
+}
+
 void NodeFactory::freeAll() {
 	iGetInstance().iFreeAll();
 }
