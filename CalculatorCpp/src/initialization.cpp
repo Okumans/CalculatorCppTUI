@@ -43,7 +43,8 @@ const std::vector<std::string> mainKeywords{
 	"&&",
 	"||",
 	"==",
-	"@size"
+	"@size",
+	"utc_time"
 };
 
 static std::vector<std::pair<std::string, std::string>> splitIntoPairs(const std::vector<std::string>& vec) {
@@ -137,7 +138,8 @@ void initializeParser(Parser& parser) {
 		{"||", 1},
 		{"&&", 1},
 		{"==", 2},
-		{"@size", 9}
+		{"@size", 9},
+		{"utc_time", 9},
 	};
 
 	using EvalType = Parser::OperatorEvalType;
@@ -169,6 +171,7 @@ void initializeParser(Parser& parser) {
 		{"&&", EvalType::Infix},
 		{"==", EvalType::Infix},
 		{"@size", EvalType::Prefix},
+		{"utc_time", EvalType::Constant},
 	};
 
 	parser.setBracketOperators(mainBracketPairs);

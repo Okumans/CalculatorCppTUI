@@ -227,9 +227,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 	std::stack<NodeFactory::NodePos> resultStack;
 	std::stack<Lexeme> operatorStack;
 	std::unordered_map<NodeFactory::NodePos, RuntimeType>& cachedNodeTypes{ NodeFactory::getNodesCachedType() };
-	std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> lambdaHeadNodes;
-
-	//std::unordered_map<NodeFactory::NodePos, std::vector<NodeFactory::NodePos>> argumentReplacementTable; // {LambdaHeadNode: [replacementNodes...]}
+	std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> lambdaHeadNodes; // keep tracked of current value of lambda head node
 
 	const auto checkOperatorEvalTypeState{ [&EvaluatorLambdaFunction](const Lexeme& lexeme, Lambda::LambdaNotation checkState) {
 		return (EvaluatorLambdaFunction.contains(lexeme) && (EvaluatorLambdaFunction.at(lexeme).getNotation() == checkState));
@@ -317,7 +315,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), EvaluatorLambdaFunction, &cachedNodeTypes) };
 				EXCEPT_RETURN(operatorNodeReturnTypeResult);
 
-				if (NodeFactory::NodePos topStackLambdaFunction{ resultStack.size() ? lambdaHeadNodes.at(resultStack.top()) : NodeFactory::NodePosNull };
+				if (NodeFactory::NodePos topStackLambdaFunction{ resultStack.size() && lambdaHeadNodes.contains(resultStack.top()) ? lambdaHeadNodes.at(resultStack.top()) : NodeFactory::NodePosNull};
 					NodeFactory::validNode(topStackLambdaFunction) && cachedNodeTypes.contains(topStackLambdaFunction) &&
 					NodeFactory::node(topStackLambdaFunction).nodeState == NodeFactory::Node::NodeState::LambdaFuntion &&
 					NodeFactory::node(operatorNode.getValue()).nodeState == NodeFactory::Node::NodeState::Storage)
@@ -349,7 +347,9 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 					std::unordered_map<std::string, NodeFactory::NodePos> storageNodeForReplacement;
 					auto parametersIt{ NodeFactory::node(topStackLambdaFunction).parametersWithType.begin() };
-					if (NodeFactory::node(extractedOperatorNode).nodeState == NodeFactory::Node::NodeState::Storage) {
+					if (NodeFactory::node(extractedOperatorNode).nodeState == NodeFactory::Node::NodeState::Storage && 
+						NodeFactory::validNode(NodeFactory::node(extractedOperatorNode).leftPos)) 
+					{
 						NodeFactory::NodePos currStorageNode{ extractedOperatorNode };
 
 						if (NodeFactory::validNode(currStorageNode) && !NodeFactory::validNode(NodeFactory::node(currStorageNode).leftPos))
@@ -365,11 +365,9 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 					else
 						storageNodeForReplacement.try_emplace(parametersIt->first, extractedOperatorNode);
 
+					NodeFactory::node(topStackLambdaFunction).parametersWithType.clear(); // set state that this is ready to evaluate
 					Lambda::findAndReplaceConstant(topStackLambdaFunction, storageNodeForReplacement);
-
-					//if (NodeFactory::NodePos endLambdaExpression{ NodeFactory::node(Storage::storageLikeIteratorEnd(topStackLambdaFunction)).leftPos }; NodeFactory::node(endLambdaExpression).nodeState == NodeFactory::Node::NodeState::LambdaFuntion)
-					NodeFactory::NodePos endLambdaExpression{ NodeFactory::node(Storage::storageLikeIteratorEnd(topStackLambdaFunction)).leftPos };
-					lambdaHeadNodes.insert_or_assign(resultStack.top(), endLambdaExpression);
+					lambdaHeadNodes.insert_or_assign(resultStack.top(), NodeFactory::node(Storage::storageLikeIteratorEnd(topStackLambdaFunction)).leftPos);
 				}
 
 				else {
@@ -550,7 +548,7 @@ std::optional<std::runtime_error> Parser::getLambdaType(std::vector<std::pair<st
 	return std::nullopt;
 }
 
-Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes) const
+Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, const std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes) const
 {
 	std::string_view rawVariablesExpression;
 	std::string_view rawOperationTree(RawExpression);
@@ -580,6 +578,9 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 		}
 	}
 
+	else if (variableLexemesWithTypes.empty() && RawExpressionType == NodeFactory::Node::NodeState::LambdaFuntion)
+		variableLexemesWithTypes.emplace_back("_", RuntimeBaseType::_Storage);
+
 	auto operationTree = initializeStaticLexer(pas.mTempConstant)(std::string(rawOperationTree));
 	auto parsedNumberOperationTree = parseNumbers(operationTree);
 
@@ -606,10 +607,8 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 	}
 
 	else if (!foundParameterSlot && RawExpressionType == NodeFactory::Node::NodeState::Storage) {
-		if (RawExpression == "") {
+		if (RawExpression == "")
 			operatorNode = NodeFactory::create();
-			lambdaOperatorHeadNode = operatorNode;
-		}
 		else
 			std::tie(operatorNode, lambdaOperatorHeadNode) = createRawExpressionStorage(fullyParsedOperationTree.getValue());
 

@@ -6,6 +6,7 @@
 
 #include "initialization.h"
 #include "runtimeTypedExprComponent.h"
+#include <chrono>
 
 #ifndef N_EVALUATE1
 
@@ -88,6 +89,15 @@ const Result<Lambda, std::runtime_error> absLambdaFunction = Lambda::fromFunctio
 	Lambda::LambdaNotation::Postfix,																		// LambdaNotation			= Lambda::LambdaNotation::Postfix
 	[](const Lambda::LambdaArguments& args) -> RuntimeTypedExprComponent {									// LambdaFunction			= ([0]: Number) -> Number
 		return Number(std::fabsl(args[0].getNumber()));
+	}
+);
+
+const Result<Lambda, std::runtime_error> utc_time = Lambda::fromFunction(
+	"utc_time",
+	RCT::Lambda(RuntimeBaseType::Number, RuntimeBaseType::_Storage),
+	Lambda::LambdaNotation::Constant,
+	[](const Lambda::LambdaArguments&) -> RuntimeTypedExprComponent {
+		return static_cast<long double>(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 	}
 );
 
@@ -315,6 +325,7 @@ inline void initializeEvaluator(Evaluate& evaluator) {
 	evaluator.addOperatorFunction(orLambdaFunction.getValue());
 	evaluator.addOperatorFunction(equalityLambdaFunction.getValue());
 	evaluator.addOperatorFunction(lengthLambdaFunction.getValue());
+	evaluator.addOperatorFunction(utc_time.getValue());
 	/*evaluator.addOperatorFunction("+", [](Floating a, Floating b) {return a + b; });
 	evaluator.addOperatorFunction("-", [](Floating a, Floating b) {return a - b; });
 	evaluator.addOperatorFunction("*", [](Floating a, Floating b) {return a * b; });

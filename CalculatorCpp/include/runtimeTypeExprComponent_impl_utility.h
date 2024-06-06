@@ -85,7 +85,7 @@ inline RuntimeTypedExprComponent::RuntimeTypedExprComponent(const RuntimeTypedEx
 
 inline RuntimeTypedExprComponent::RuntimeTypedExprComponent(RuntimeTypedExprComponent&& other) noexcept :
 	std::variant<Number, Storage, Lambda, NodePointer>(std::move(other)),
-	mStoredType{ std::move(other.mStoredType) } {} 
+	mStoredType{ std::move(other.mStoredType) } {}
 
 inline RuntimeTypedExprComponent& RuntimeTypedExprComponent::operator=(const RuntimeTypedExprComponent& other) {
 	if (this != &other) {
@@ -202,7 +202,8 @@ inline std::vector<std::string_view> splitString(std::string_view in, char sep) 
 }
 
 inline bool _fastCheckRuntimeTypeArgumentsType(const RuntimeType& baseType, const std::vector<RuntimeTypedExprComponent>& argumentsCheckType) {
-	if (std::holds_alternative<RuntimeEvaluate>(baseType))
+	if (std::holds_alternative<RuntimeEvaluate>(baseType) ||
+		(std::holds_alternative<RuntimeBaseType>(baseType) && std::get<RuntimeBaseType>(baseType) == RuntimeBaseType::NodePointer))
 		return true;
 
 	if (!std::holds_alternative<RuntimeCompoundType>(baseType) ||
@@ -240,7 +241,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 			continue;
 		}
 
-		const NodeFactory::Node &currNode{ NodeFactory::node(currNodePos) }; // gurantree node to not change value, use reference.
+		const NodeFactory::Node& currNode{ NodeFactory::node(currNodePos) }; // gurantree node to not change value, use reference.
 
 		// if currNode is a leaf node.
 		if (!NodeFactory::validNode(currNode.rightPos) &&
