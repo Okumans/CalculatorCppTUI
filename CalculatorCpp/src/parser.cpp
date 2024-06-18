@@ -130,6 +130,10 @@ Parser::OperatorLevel Parser::getOperatorLevel(const Lexeme& oprLexeme) const {
 	return mOperatorLevels.at(oprLexeme);
 }
 
+const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& Parser::getNodeDependency() const {
+	return mNodeDependency;
+}
+
 std::vector<std::string> Parser::parseNumbers(const std::vector<Lexeme>& lexemes) const {
 	std::vector<std::string> result;
 	std::string numberBuffer{ "" };
@@ -220,7 +224,74 @@ static NodeFactory::NodePos getLambdaHeadNodeIfIsLambda(NodeFactory::NodePos val
 	return (lambdaHeadNodes.contains(valueNode)) ? lambdaHeadNodes.at(valueNode) : valueNode;
 }
 
-Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::vector<Lexeme>& parsedLexemes, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction) const {
+Result<std::optional<std::string>, std::runtime_error> Parser::processIfReturnLambda(
+	NodeFactory::NodePos possibleReturnedLambdaNode,
+	std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction,
+	const std::unordered_map<std::string, NodeFactory::NodePos>& nodeHaveDependency,
+	std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency)
+const {
+	if (nodeHaveDependency.contains(NodeFactory::node(possibleReturnedLambdaNode).value))
+		nodeDependency.try_emplace(possibleReturnedLambdaNode, nodeHaveDependency.at(NodeFactory::node(possibleReturnedLambdaNode).value));
+		
+	if (NodeFactory::node(possibleReturnedLambdaNode).nodeState != NodeFactory::Node::NodeState::Operator || !EvaluatorLambdaFunction.contains(NodeFactory::node(possibleReturnedLambdaNode).value))
+		return Result<std::optional<std::string>, std::runtime_error>(std::nullopt);
+
+	std::shared_ptr<RuntimeType> lambdaReturnedType{ EvaluatorLambdaFunction.at(NodeFactory::node(possibleReturnedLambdaNode).value).getLambdaInfo().ReturnType };
+	if (const RuntimeCompoundType* lambdaReturnTypeAsCompoundType{ std::get_if<RuntimeCompoundType>(lambdaReturnedType.get()) };
+		!lambdaReturnTypeAsCompoundType || (lambdaReturnTypeAsCompoundType->Type != RuntimeBaseType::_Lambda && (static_cast<int8_t>(lambdaReturnTypeAsCompoundType->Type) <= 3 || lambdaReturnTypeAsCompoundType->Type == RuntimeBaseType::_Stroage_Any)))
+		return Result<std::optional<std::string>, std::runtime_error>(std::nullopt);
+
+	std::string generatedReturnedLambdaName{
+		std::format(
+			"{}_{}",
+			NodeFactory::node(possibleReturnedLambdaNode).value,
+			randomNumber()
+		)
+	};
+
+	Lambda lambdaFunction{ Lambda::LambdaConstant(generatedReturnedLambdaName, NodeFactory::NodePosNull) };
+
+	switch (std::get<RuntimeCompoundType>(*lambdaReturnedType).Type)
+	{
+		using LambdaNotation = Lambda::LambdaNotation;
+	case RuntimeBaseType::_Lambda:
+	case RuntimeBaseType::_Operator_Lambda_Postfix:
+		lambdaFunction.setNotation(LambdaNotation::Postfix);
+		break;
+
+	case RuntimeBaseType::_Operator_Lambda_Infix:
+		lambdaFunction.setNotation(LambdaNotation::Infix);
+		break;
+
+	case RuntimeBaseType::_Operator_Lambda_Prefix:
+		lambdaFunction.setNotation(LambdaNotation::Prefix);
+		break;
+
+	case RuntimeBaseType::_Operator_Lambda_Constant:
+		lambdaFunction.setNotation(LambdaNotation::Constant);
+		break;
+
+	default:
+		unreachable();
+	}
+
+	assert(std::get<RuntimeCompoundType>(*lambdaReturnedType).Children.size());
+	lambdaFunction._overrideType(
+		std::get<RuntimeCompoundType>(*lambdaReturnedType).Children.front(),
+		RuntimeBaseType::_Stroage_Any // storage any is not normaly allow as parameter, this is for evaluator to know if this function will allow any parameters type in parsedtime. (check at runtime)
+	);
+
+	//std::cout << lambdaFunction.getType() << "\n";
+	//std::cout << *lambdaFunction.getLambdaInfo().ParamsType << "\n";
+	//std::cout << *lambdaFunction.getLambdaInfo().ReturnType << "\n";
+
+	mEvaluatorLambdaFunction.insert_or_assign(generatedReturnedLambdaName, lambdaFunction);
+	EvaluatorLambdaFunction.insert_or_assign(generatedReturnedLambdaName, std::move(lambdaFunction));
+
+	return Result<std::optional<std::string>, std::runtime_error>(generatedReturnedLambdaName);
+}
+
+Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::vector<Lexeme>& parsedLexemes, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction) {
 	if (!mIsParserReady)
 		return RuntimeError<ParserNotReadyError>("Please run parserReady() first!, To make sure that parser is ready.");
 
@@ -228,6 +299,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 	std::stack<Lexeme> operatorStack;
 	std::unordered_map<NodeFactory::NodePos, RuntimeType>& cachedNodeTypes{ NodeFactory::getNodesCachedType() };
 	std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> lambdaHeadNodes; // keep tracked of current value of lambda head node
+	static std::unordered_map<std::string, NodeFactory::NodePos> nodeHaveDependency; // keep tracked if operator have nested operator
 
 	const auto checkOperatorEvalTypeState{ [&EvaluatorLambdaFunction](const Lexeme& lexeme, Lambda::LambdaNotation checkState) {
 		return (EvaluatorLambdaFunction.contains(lexeme) && (EvaluatorLambdaFunction.at(lexeme).getNotation() == checkState));
@@ -253,7 +325,17 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 				NodeFactory::node(operatorNode).nodeState = NodeFactory::Node::NodeState::Operator;
 				NodeFactory::node(operatorNode).rightPos = prefixOperandNodeValue.getValue();
-				resultStack.push(operatorNode);
+
+				Result<std::optional<std::string>, std::runtime_error> possibleNodeLambdaReturnResult{ processIfReturnLambda(operatorNode, EvaluatorLambdaFunction, nodeHaveDependency, mNodeDependency) };
+				EXCEPT_RETURN(possibleNodeLambdaReturnResult);
+
+				if (possibleNodeLambdaReturnResult.getValue().has_value()) {
+					nodeHaveDependency.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), operatorNode);
+					mOperatorLevels.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), 9);
+					operatorStack.emplace(std::move(*possibleNodeLambdaReturnResult.moveValue()));
+				}
+				else
+					resultStack.push(operatorNode);
 			}
 		}
 
@@ -281,7 +363,17 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 			NodeFactory::node(operatorNode).leftPos = prefixOperandNode.getValue();
 			NodeFactory::node(operatorNode).nodeState = NodeFactory::Node::NodeState::Operator;
-			resultStack.push(operatorNode);
+
+			Result<std::optional<std::string>, std::runtime_error> possibleNodeLambdaReturnResult{ processIfReturnLambda(operatorNode, EvaluatorLambdaFunction, nodeHaveDependency, mNodeDependency) };
+			EXCEPT_RETURN(possibleNodeLambdaReturnResult);
+
+			if (possibleNodeLambdaReturnResult.getValue().has_value()) {
+				nodeHaveDependency.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), operatorNode);
+				mOperatorLevels.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), 9);
+				operatorStack.emplace(std::move(*possibleNodeLambdaReturnResult.moveValue()));
+			}
+			else
+				resultStack.push(operatorNode);
 		}
 
 		// if found close bracket
@@ -312,10 +404,10 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 					NodeFactory::create(operatorNodeValue) };
 				EXCEPT_RETURN(operatorNode);
 
-				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), EvaluatorLambdaFunction, &cachedNodeTypes) };
+				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), mEvaluatorLambdaFunction, &cachedNodeTypes) };
 				EXCEPT_RETURN(operatorNodeReturnTypeResult);
 
-				if (NodeFactory::NodePos topStackLambdaFunction{ resultStack.size() && lambdaHeadNodes.contains(resultStack.top()) ? lambdaHeadNodes.at(resultStack.top()) : NodeFactory::NodePosNull};
+				if (NodeFactory::NodePos topStackLambdaFunction{ resultStack.size() && lambdaHeadNodes.contains(resultStack.top()) ? lambdaHeadNodes.at(resultStack.top()) : NodeFactory::NodePosNull };
 					NodeFactory::validNode(topStackLambdaFunction) && cachedNodeTypes.contains(topStackLambdaFunction) &&
 					NodeFactory::node(topStackLambdaFunction).nodeState == NodeFactory::Node::NodeState::LambdaFuntion &&
 					NodeFactory::node(operatorNode.getValue()).nodeState == NodeFactory::Node::NodeState::Storage)
@@ -347,8 +439,8 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 					std::unordered_map<std::string, NodeFactory::NodePos> storageNodeForReplacement;
 					auto parametersIt{ NodeFactory::node(topStackLambdaFunction).parametersWithType.begin() };
-					if (NodeFactory::node(extractedOperatorNode).nodeState == NodeFactory::Node::NodeState::Storage && 
-						NodeFactory::validNode(NodeFactory::node(extractedOperatorNode).leftPos)) 
+					if (NodeFactory::node(extractedOperatorNode).nodeState == NodeFactory::Node::NodeState::Storage &&
+						NodeFactory::validNode(NodeFactory::node(extractedOperatorNode).leftPos))
 					{
 						NodeFactory::NodePos currStorageNode{ extractedOperatorNode };
 
@@ -390,7 +482,16 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 				processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
 
-				resultStack.push(operatorNode);
+				Result<std::optional<std::string>, std::runtime_error> possibleNodeLambdaReturnResult{ processIfReturnLambda(operatorNode, EvaluatorLambdaFunction, nodeHaveDependency, mNodeDependency) };
+				EXCEPT_RETURN(possibleNodeLambdaReturnResult);
+
+				if (possibleNodeLambdaReturnResult.getValue().has_value()) {
+					nodeHaveDependency.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), operatorNode);
+					mOperatorLevels.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), 9);
+					operatorStack.emplace(std::move(*possibleNodeLambdaReturnResult.moveValue()));
+				}
+				else
+					resultStack.push(operatorNode);
 			}
 
 			if (operatorStack.empty())
@@ -401,14 +502,24 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 				return std::vector<NodeFactory::NodePos>{}; // return null
 
 			// if current expression is argument of postfix operator
-			while (!operatorStack.empty() && checkOperatorEvalTypeState(operatorStack.top(), Lambda::LambdaNotation::Postfix)) {
+			while (!operatorStack.empty() && checkOperatorEvalTypeState(operatorStack.top(), Lambda::LambdaNotation::Postfix) && !resultStack.empty()) {
 				auto operatorNode = NodeFactory::create(topPopNotEmpty(operatorStack).getValue()); // guarantee that operatorNodeValue will always contains a value.
 				auto prefixOperandNodeValue = getLambdaHeadNodeIfIsLambda(topPopNotEmpty(resultStack), lambdaHeadNodes);
 				EXCEPT_RETURN(prefixOperandNodeValue);
 
 				NodeFactory::node(operatorNode).nodeState = NodeFactory::Node::NodeState::Operator;
 				NodeFactory::node(operatorNode).rightPos = prefixOperandNodeValue.getValue();
-				resultStack.push(operatorNode);
+
+				Result<std::optional<std::string>, std::runtime_error> possibleNodeLambdaReturnResult{ processIfReturnLambda(operatorNode, EvaluatorLambdaFunction, nodeHaveDependency, mNodeDependency) };
+				EXCEPT_RETURN(possibleNodeLambdaReturnResult);
+
+				if (possibleNodeLambdaReturnResult.getValue().has_value()) {
+					nodeHaveDependency.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), operatorNode);
+					mOperatorLevels.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), 9);
+					operatorStack.emplace(std::move(*possibleNodeLambdaReturnResult.moveValue()));
+				}
+				else
+					resultStack.push(operatorNode);
 			}
 		}
 
@@ -436,7 +547,16 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 				processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
 				NodeFactory::node(operatorNode).nodeState = NodeFactory::Node::NodeState::Operator;
 
-				resultStack.push(operatorNode);
+				Result<std::optional<std::string>, std::runtime_error> possibleNodeLambdaReturnResult{ processIfReturnLambda(operatorNode, EvaluatorLambdaFunction, nodeHaveDependency, mNodeDependency) };
+				EXCEPT_RETURN(possibleNodeLambdaReturnResult);
+
+				if (possibleNodeLambdaReturnResult.getValue().has_value()) {
+					nodeHaveDependency.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), operatorNode);
+					mOperatorLevels.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), 9);
+					operatorStack.emplace(std::move(*possibleNodeLambdaReturnResult.moveValue()));
+				}
+				else
+					resultStack.push(operatorNode);
 			}
 
 			if (strictedIsNumber(parsedLexeme))
@@ -467,7 +587,17 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 		NodeFactory::node(operatorNode).nodeState = NodeFactory::Node::NodeState::Operator;
 
 		processNode(operatorNode, operandNode1.getValue(), operandNode2.getValue());
-		resultStack.push(operatorNode);
+
+		Result<std::optional<std::string>, std::runtime_error> possibleNodeLambdaReturnResult{ processIfReturnLambda(operatorNode, EvaluatorLambdaFunction, nodeHaveDependency, mNodeDependency) };
+		EXCEPT_RETURN(possibleNodeLambdaReturnResult);
+
+		if (possibleNodeLambdaReturnResult.getValue().has_value()) {
+			nodeHaveDependency.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), operatorNode);
+			mOperatorLevels.insert_or_assign(possibleNodeLambdaReturnResult.getValue().value(), 9);
+			operatorStack.emplace(std::move(*possibleNodeLambdaReturnResult.moveValue()));
+		}
+		else
+			resultStack.push(operatorNode);
 	}
 
 	if (resultStack.empty())
@@ -548,7 +678,7 @@ std::optional<std::runtime_error> Parser::getLambdaType(std::vector<std::pair<st
 	return std::nullopt;
 }
 
-Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, const std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes) const
+Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, const std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes)
 {
 	std::string_view rawVariablesExpression;
 	std::string_view rawOperationTree(RawExpression);
@@ -728,7 +858,7 @@ std::string Parser::printOpertatorTree(std::vector<NodeFactory::NodePos> trees, 
 
 		if (NodeFactory::node(currNode).nodeState == NodeFactory::Node::NodeState::Storage) {
 			Result<Storage, std::runtime_error> storageResult{
-				Storage::fromExpressionNode(currNode, EvaluatorLambdaFunctions) };
+				Storage::fromExpressionNode(currNode, EvaluatorLambdaFunctions, {}) };
 
 			if (storageResult.isError())
 				return RuntimeError<StorageEvaluationError>(

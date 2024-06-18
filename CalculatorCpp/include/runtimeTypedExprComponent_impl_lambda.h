@@ -271,6 +271,10 @@ inline Lambda::LambdaNotation Lambda::getNotation() const {
 	return mLambdaNotation;
 }
 
+inline void Lambda::setNotation(LambdaNotation notation) {
+	mLambdaNotation = notation;
+}
+
 inline std::string Lambda::toString() const {
 	std::ostringstream ss;
 	ss << getType();
@@ -306,39 +310,8 @@ inline void Lambda::findAndReplaceConstant(NodeFactory::NodePos root, const std:
 	}
 }
 
-inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const LambdaArguments& arguments) const {
-	if (arguments.size() != mLambdaInfo.ParamsNumbers)
-		return RuntimeError<RuntimeTypeError>(
-			std::format(
-				"Lambda parameter and argument amount not matched. ({} != {})",
-				mLambdaInfo.ParamsNumbers,
-				arguments.size()
-			),
-			"Lambda::evaluate"
-		);
-
-	if (arguments.size() == 1) {
-		if (*mLambdaInfo.ParamsType != arguments[0].getDetailTypeHold())
-			return RuntimeError<RuntimeTypeError>(
-				std::format(
-					"Lambda parameter and argument type not matched ({} != {}).",
-					*mLambdaInfo.ParamsType,
-					arguments[0].getDetailTypeHold()
-				),
-				"Lambda::evaluate"
-			);
-	}
-
-	else if (mLambdaInfo.ParamsNumbers && !_fastCheckRuntimeTypeArgumentsType(*mLambdaInfo.ParamsType, arguments))
-		return RuntimeError<RuntimeTypeError>(
-			std::format(
-				"Lambda parameter and argument type not matched ({} != {}).",
-				*mLambdaInfo.ParamsType,
-				Storage::fromVector(arguments).getType()
-			),
-			"Lambda::evaluate"
-		);
-
+inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_uncheckedEvaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, const LambdaArguments& arguments) const
+{
 	if (std::holds_alternative<std::shared_ptr<std::function<RuntimeTypedExprComponent(LambdaArguments)>>>(mLambdaFunction)) {
 		try {
 			return (*std::get<std::shared_ptr<std::function<RuntimeTypedExprComponent(LambdaArguments)>>>(mLambdaFunction))(arguments);
@@ -398,7 +371,8 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 	Result<RuntimeTypedExprComponent, std::runtime_error>&& res{
 		_NodeExpressionEvaluate(
 			std::get<NodePos>(mLambdaFunction),
-			evaluatorLambdaFunctionsSnapshot
+			evaluatorLambdaFunctionsSnapshot,
+			nodeDependency
 		)
 	};
 
@@ -417,47 +391,103 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(co
 	return resultValue;
 }
 
+inline void Lambda::_overrideType(RuntimeType&& Ret, RuntimeType&& Params) {
+	mType = RuntimeCompoundType::Lambda(std::move(Ret), std::move(Params));
+	mLambdaInfo = RuntimeCompoundType::getLambdaInfo(mType);
+}
+
+inline void Lambda::_overrideType(const RuntimeType& Ret, const RuntimeType& Params) {
+	mType = RuntimeCompoundType::Lambda(Ret, Params);
+	mLambdaInfo = RuntimeCompoundType::getLambdaInfo(mType);
+}
+
+
+inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, const LambdaArguments& arguments) const {
+	if (arguments.size() != mLambdaInfo.ParamsNumbers)
+		return RuntimeError<RuntimeTypeError>(
+			std::format(
+				"Lambda parameter and argument amount not matched. ({} != {})",
+				mLambdaInfo.ParamsNumbers,
+				arguments.size()
+			),
+			"Lambda::evaluate"
+		);
+
+	if (arguments.size() == 1) {
+		if (*mLambdaInfo.ParamsType != arguments[0].getDetailTypeHold())
+			return RuntimeError<RuntimeTypeError>(
+				std::format(
+					"Lambda parameter and argument type not matched ({} != {}).",
+					*mLambdaInfo.ParamsType,
+					arguments[0].getDetailTypeHold()
+				),
+				"Lambda::evaluate"
+			);
+	}
+
+	else if (mLambdaInfo.ParamsNumbers && !_fastCheckRuntimeTypeArgumentsType(*mLambdaInfo.ParamsType, arguments))
+		return RuntimeError<RuntimeTypeError>(
+			std::format(
+				"Lambda parameter and argument type not matched ({} != {}).",
+				*mLambdaInfo.ParamsType,
+				Storage::fromVector(arguments).getType()
+			),
+			"Lambda::evaluate"
+		);
+
+	return _uncheckedEvaluate(EvaluatorLambdaFunctions, nodeDependency, arguments);
+}
+
+inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const LambdaArguments& arguments) const {
+	return evaluate(EvaluatorLambdaFunctions, nodeDependencyNull, arguments);
+}
+
 template<RuntimeTypedExprComponentRequired ...Args>
-inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, Args&&... arguments) const {
+inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, Args&&... arguments) const {
 	constexpr size_t count = sizeof...(arguments);
 	std::vector<RuntimeTypedExprComponent> tmp;
 	tmp.reserve(count);
 	(tmp.emplace_back(std::move(std::forward<Args>(arguments))), ...);
-	return evaluate(EvaluatorLambdaFunctions, tmp);
+	return evaluate(EvaluatorLambdaFunctions, nodeDependency, tmp);
+}
+
+template<RuntimeTypedExprComponentRequired ...Args>
+inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, Args && ...arguments) const {
+	constexpr size_t count = sizeof...(arguments);
+	std::vector<RuntimeTypedExprComponent> tmp;
+	tmp.reserve(count);
+	(tmp.emplace_back(std::move(std::forward<Args>(arguments))), ...);
+	return evaluate(EvaluatorLambdaFunctions, nodeDependencyNull, tmp);
+}
+
+template<RuntimeTypedExprComponentRequired ...Args>
+inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_uncheckedEvaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, Args && ...arguments) const {
+	constexpr size_t count = sizeof...(arguments);
+	std::vector<RuntimeTypedExprComponent> tmp;
+	tmp.reserve(count);
+	(tmp.emplace_back(std::move(std::forward<Args>(arguments))), ...);
+	return _uncheckedEvaluate(EvaluatorLambdaFunctions, nodeDependency, tmp);
 }
 
 static bool isLeafNode(NodeFactory::NodePos nodePos) {
 	return (!NodeFactory::validNode(NodeFactory::node(nodePos).leftPos) && !NodeFactory::validNode(NodeFactory::node(nodePos).rightPos));
 }
 
-inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda::_NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions) {
+inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda::_NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency) {
 	std::vector<RuntimeTypedExprComponent> evaluationResults;
+	std::unordered_map<std::string, Lambda> EvaluatorLambdaFunctionsSnapShot(EvaluatorLambdaFunctions);
 
 	std::ranges::reverse(rootNodeExpressions);
 
 	while (!rootNodeExpressions.empty()) {
 		NodePos currNode = rootNodeExpressions.back(); rootNodeExpressions.pop_back();
 		NodeFactory::Node currNodeNode = NodeFactory::node(currNode);
-		//if (NodeFactory::node(currNode).nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
-		//	Result<Lambda, std::runtime_error> lambdaFunctionResult{ Lambda::fromExpressionNode(currNode, EvaluatorLambdaFunctions) };
-		//	if (lambdaFunctionResult.isError())
-		//		return RuntimeError<LambdaEvaluationError>(
-		//			lambdaFunctionResult.getException(),
-		//			std::format(
-		//				"When attempting to convert a NodeExpression into a lambda function for evaluation. (nodeExpression value = {})",
-		//				NodeFactory::validNode(currNode) ? NodeFactory::node(currNode).value : "Null"
-		//			),
-		//			"Lambda::_NodeExpressionsEvaluator"
-		//		);
-
-		//	evaluationResults.emplace_back(lambdaFunctionResult.moveValue());
-		//	continue;
-		//}
 
 		Result<RuntimeTypedExprComponent, std::runtime_error> evaluationResult{
 			_NodeExpressionEvaluate(
 				currNode,
-				EvaluatorLambdaFunctions
+				EvaluatorLambdaFunctionsSnapShot,
+				nodeDependency
 			)
 		};
 
@@ -479,10 +509,16 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 
 inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpressionEvaluate(
 	NodePos rootNodeExpression,
-	const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions
+	std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions,
+	std::unordered_map<NodePos, NodePos> nodeDependency
 ) {
 	std::stack<NodeFactory::NodePos> operationStack;
 	std::unordered_map<NodeFactory::NodePos, std::optional<RuntimeTypedExprComponent>> resultMap;
+
+	std::unordered_map<NodePos, NodePos> reversedNodeDependency;
+	for (const auto& [key, value] : nodeDependency) 
+		reversedNodeDependency.try_emplace(value, key);
+	
 
 	operationStack.push(rootNodeExpression);
 	while (!operationStack.empty()) {
@@ -495,6 +531,11 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 
 		NodeFactory::Node* currNode{ &NodeFactory::node(currNodePos) };
 
+		if (nodeDependency.contains(currNodePos)) {
+			operationStack.emplace(nodeDependency.at(currNodePos));
+			continue;
+		}
+
 		// if currNode is a leaf node.
 		if (!NodeFactory::validNode(currNode->rightPos) &&
 			!NodeFactory::validNode(currNode->leftPos)) {
@@ -505,7 +546,8 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				resultMap[currNodePos] = Storage::NullStorage();
 
 			else if (EvaluatorLambdaFunctions.contains(currNode->value) &&
-				EvaluatorLambdaFunctions.at(currNode->value).getNotation() == Lambda::LambdaNotation::Constant) {
+				EvaluatorLambdaFunctions.at(currNode->value).getNotation() == Lambda::LambdaNotation::Constant) 
+			{
 				Lambda constOperator{ EvaluatorLambdaFunctions.at(currNode->value) };
 				Result<RuntimeTypedExprComponent, std::runtime_error>&& constOperatorResult{ constOperator.evaluate(EvaluatorLambdaFunctions, {}) };
 
@@ -556,7 +598,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				}
 
 				Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error>&& leftVal{
-					_NodeExpressionsEvaluator(expressions, EvaluatorLambdaFunctions)
+					_NodeExpressionsEvaluator(expressions, EvaluatorLambdaFunctions, nodeDependency)
 				};
 
 				if (leftVal.isError())
@@ -583,7 +625,8 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				Result<RuntimeTypedExprComponent, std::runtime_error>&& result{
 					_NodeExpressionEvaluate(
 						NodeFactory::node(currArgNodePos).leftPos,
-						EvaluatorLambdaFunctions
+						EvaluatorLambdaFunctions,
+						nodeDependency
 					)
 				};
 
@@ -624,38 +667,39 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			RuntimeTypedExprComponent&& rightVal{ std::move(resultMap[currNode->rightPos].value()) };
 
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode->value) };
-			const auto& parametersType{
-				RuntimeCompoundType::getStorageInfo(
-					*lambdaFunction.getLambdaInfo().ParamsType
-				).Storage
-			};
+			
+			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
+				if (const auto& parametersType{ RuntimeCompoundType::getStorageInfo(*lambdaFunction.getLambdaInfo().ParamsType).Storage };
+					parametersType->size() != 1)
+				{
+					// implicit convert to nodePointer
+					if ((*parametersType)[0] == RuntimeBaseType::NodePointer)
+						leftVal = NodePointer(leftVal.toNodeExpression());
 
-			// implicit convert to nodePointer
-			if ((*parametersType)[0] == RuntimeBaseType::NodePointer)
-				leftVal = NodePointer(leftVal.toNodeExpression());
+					// implicit convert to nodePointer
+					if ((*parametersType)[1] == RuntimeBaseType::NodePointer)
+						rightVal = NodePointer(rightVal.toNodeExpression());
 
-			// implicit convert to nodePointer
-			if ((*parametersType)[1] == RuntimeBaseType::NodePointer)
-				rightVal = NodePointer(rightVal.toNodeExpression());
-
-			if (!((*parametersType)[0] == leftVal.getDetailTypeHold() &&
-				(*parametersType)[1] == rightVal.getDetailTypeHold()))
-				return RuntimeError<RuntimeTypeError>(
-					std::format(
-						"Parameters type must be same as to argument type. ({} != {})",
-						*lambdaFunction.getLambdaInfo().ParamsType,
-						RuntimeType(
-							RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({
-								leftVal.getDetailTypeHold(),
-								rightVal.getDetailTypeHold()
-								})
-						)
-					),
-					"Lambda::_NodeExpressionEvaluate"
-				);
+					if (!((*parametersType)[0] == leftVal.getDetailTypeHold() &&
+						(*parametersType)[1] == rightVal.getDetailTypeHold()))
+						return RuntimeError<RuntimeTypeError>(
+							std::format(
+								"Parameters type must be same as to argument type. ({} != {})",
+								*lambdaFunction.getLambdaInfo().ParamsType,
+								RuntimeType(
+									RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({
+										leftVal.getDetailTypeHold(),
+										rightVal.getDetailTypeHold()
+										})
+								)
+							),
+							"Lambda::_NodeExpressionEvaluate"
+						);
+				}
+			}
 
 			Result<RuntimeTypedExprComponent, std::runtime_error>&& infixOperatorResult{
-				lambdaFunction.evaluate(EvaluatorLambdaFunctions, std::move(leftVal), std::move(rightVal))
+				lambdaFunction._uncheckedEvaluate(EvaluatorLambdaFunctions, nodeDependency, std::move(leftVal), std::move(rightVal))
 			};
 
 			if (infixOperatorResult.isError())
@@ -682,22 +726,24 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			RuntimeTypedExprComponent&& rightVal{ std::move(resultMap[currNode->rightPos].value()) };
 			const Lambda& lambdaFunction = EvaluatorLambdaFunctions.at(currNode->value);
 
-			// implicit convert to nodePointer
-			if (*lambdaFunction.getLambdaInfo().ParamsType == RuntimeBaseType::NodePointer)
-				rightVal = NodePointer(rightVal.toNodeExpression());
+			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
+				// implicit convert to nodePointer
+				if (*lambdaFunction.getLambdaInfo().ParamsType == RuntimeBaseType::NodePointer)
+					rightVal = NodePointer(rightVal.toNodeExpression());
 
-			if (*lambdaFunction.getLambdaInfo().ParamsType != rightVal.getDetailTypeHold())
-				return RuntimeError<RuntimeTypeError>(
-					std::format(
-						"Parameters type must be equal to argument type. ({} != {})",
-						*lambdaFunction.getLambdaInfo().ParamsType,
-						rightVal.getDetailTypeHold()
-					),
-					"Lambda::_NodeExpressionEvaluate"
-				);
+				if (*lambdaFunction.getLambdaInfo().ParamsType != rightVal.getDetailTypeHold())
+					return RuntimeError<RuntimeTypeError>(
+						std::format(
+							"Parameters type must be equal to argument type. ({} != {})",
+							*lambdaFunction.getLambdaInfo().ParamsType,
+							rightVal.getDetailTypeHold()
+						),
+						"Lambda::_NodeExpressionEvaluate"
+					);
+			}
 
 			Result<RuntimeTypedExprComponent, std::runtime_error>&& postfixOperatorResult{
-				lambdaFunction.evaluate(EvaluatorLambdaFunctions, std::move(rightVal))
+				lambdaFunction._uncheckedEvaluate(EvaluatorLambdaFunctions, nodeDependency, std::move(rightVal))
 			};
 
 			if (postfixOperatorResult.isError())
@@ -737,7 +783,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				);
 
 			Result<RuntimeTypedExprComponent, std::runtime_error>&& prefixOperatorResult{
-				lambdaFunction.evaluate(EvaluatorLambdaFunctions, std::move(leftVal))
+				lambdaFunction.evaluate(EvaluatorLambdaFunctions, nodeDependency, std::move(leftVal))
 			};
 
 			if (prefixOperatorResult.isError())
@@ -753,6 +799,10 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			resultMap[currNodePos] = prefixOperatorResult.moveValue();
 		}
 
+		if (reversedNodeDependency.contains(currNodePos)) {
+			nodeDependency.erase(reversedNodeDependency.at(currNodePos));
+			EvaluatorLambdaFunctions.insert_or_assign(NodeFactory::node(reversedNodeDependency.at(currNodePos)).value, resultMap[currNodePos].value().getLambda());
+		}
 		operationStack.pop();
 	}
 

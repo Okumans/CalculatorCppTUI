@@ -34,7 +34,7 @@ private:
 public:
 	void addOperatorFunction(const Lambda& operatorDefinition);
 	void addOperatorFunction(Lambda&& operatorDefinition);
-	Result<RuntimeTypedExprComponent> evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots) const;
+	Result<RuntimeTypedExprComponent> evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots, const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> nodeDependency);
 	std::unordered_map<Parser::Lexeme, Lambda>& getEvaluationLambdaFunction();
 };
 

@@ -132,7 +132,7 @@ inline Storage Storage::fromArgs(Args &&...storageData) {
 	return Storage(RuntimeCompoundType::Storage(std::move(storageDataTypes)), std::move(tmp));
 }
 
-inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos storageRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions) {
+inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos storageRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency) {
 	if (!NodeFactory::validNode(storageRootNode) || NodeFactory::node(storageRootNode).nodeState != NodeFactory::Node::NodeState::Storage)
 		return std::runtime_error("storageRootNode must be valid node with Storage nodestate.");
 
@@ -149,7 +149,7 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 		currArgNodePos = NodeFactory::node(currArgNodePos).rightPos;
 	}
 
-	Result<StorageArguments, std::runtime_error> argumentsResult{ Lambda::_NodeExpressionsEvaluator(argumentNodeExpressions, EvaluatorLambdaFunctions) };
+	Result<StorageArguments, std::runtime_error> argumentsResult{ Lambda::_NodeExpressionsEvaluator(argumentNodeExpressions, EvaluatorLambdaFunctions, nodeDependency) };
 
 	if (argumentsResult.isError())
 		return RuntimeError<StorageEvaluationError>(

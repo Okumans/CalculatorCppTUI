@@ -77,13 +77,23 @@ inline RuntimeCompoundType RuntimeCompoundType::Storage(Args&&... base) {
 
 // Create a RuntimeCompoundType with a vector of RuntimeType elements
 inline RuntimeCompoundType RuntimeCompoundType::Storage(const std::vector<RuntimeType>& base) {
-	for (const RuntimeType& element : base) assert(std::holds_alternative<RuntimeEvaluate>(element));
+	for (const RuntimeType& element : base) 
+		assert(
+			(std::holds_alternative<RuntimeBaseType>(element) && static_cast<int8_t>(std::get<RuntimeBaseType>(element)) > 3) || \
+			(std::holds_alternative<RuntimeCompoundType>(element) && static_cast<int8_t>(std::get<RuntimeCompoundType>(element).Type) > 3)
+		);
+
 	return RuntimeCompoundType(RuntimeBaseType::_Storage, base);
 }
 
 // Create a RuntimeCompoundType with a rvalue vector of RuntimeType elements
 inline RuntimeCompoundType RuntimeCompoundType::Storage(std::vector<RuntimeType>&& base) {
-	for (const RuntimeType& element : base) assert(std::holds_alternative<RuntimeEvaluate>(element));
+	for (const RuntimeType& element : base) 		
+		assert(
+			(std::holds_alternative<RuntimeBaseType>(element) && static_cast<int8_t>(std::get<RuntimeBaseType>(element)) > 3) || \
+			(std::holds_alternative<RuntimeCompoundType>(element) && static_cast<int8_t>(std::get<RuntimeCompoundType>(element).Type) > 3)
+		);
+
 	return RuntimeCompoundType(RuntimeBaseType::_Storage, std::move(base));
 }
 
@@ -100,6 +110,47 @@ inline RuntimeCompoundType RuntimeCompoundType::Lambda(RuntimeType&& Ret, Runtim
 	tmp.emplace_back(std::move(Params));
 	return RuntimeCompoundType(RuntimeBaseType::_Lambda, std::move(tmp));
 }
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaInfix(const RuntimeType& Ret) {
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Infix, { Ret });
+}
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaInfix(RuntimeType&& Ret) {
+	std::vector<RuntimeType> tmp;
+	tmp.emplace_back(std::move(Ret));
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Infix, std::move(tmp));
+}
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaPostfix(const RuntimeType& Ret) {
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Postfix, { Ret });
+}
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaPostfix(RuntimeType&& Ret) {
+	std::vector<RuntimeType> tmp;
+	tmp.emplace_back(std::move(Ret));
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Postfix, std::move(tmp));
+}
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaPrefix(const RuntimeType& Ret) {
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Prefix, { Ret });
+}
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaPrefix(RuntimeType&& Ret) {
+	std::vector<RuntimeType> tmp;
+	tmp.emplace_back(std::move(Ret));
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Prefix, std::move(tmp));
+}
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaConstant(const RuntimeType& Ret) {
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Prefix, { Ret });
+}
+
+inline RuntimeCompoundType RuntimeCompoundType::RuntimeEvaluateLambdaConstant(RuntimeType&& Ret) {
+	std::vector<RuntimeType> tmp;
+	tmp.emplace_back(std::move(Ret));
+	return RuntimeCompoundType(RuntimeBaseType::_Operator_Lambda_Constant, std::move(tmp));
+}
+
 // Parse a string representing a RuntimeType
 inline Result<RuntimeType, std::runtime_error> RuntimeCompoundType::ParseString(const std::string& stringLikeType) {
 	// Initialize the lexer if not already done
@@ -354,8 +405,6 @@ inline size_t RuntimeCompoundType::generateHash(RuntimeBaseType wrapper, const s
 			hash_combine(seed, std::get<RuntimeCompoundType>(child).mHashed);
 		else if (std::holds_alternative<RuntimeBaseType>(child))
 			hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeBaseType>(child))));
-		else
-			hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeEvaluate>(child))));
 	}
 	return seed;
 }
@@ -371,8 +420,6 @@ inline size_t RuntimeCompoundType::generateHash(RuntimeBaseType wrapper, const R
 		hash_combine(seed, std::get<RuntimeCompoundType>(base).mHashed);
 	else if (std::holds_alternative<RuntimeBaseType>(base))
 		hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeBaseType>(base))));
-	else
-		hash_combine(seed, std::hash<char>{}(static_cast<char>(std::get<RuntimeEvaluate>(base))));
 
 	return seed;
 }

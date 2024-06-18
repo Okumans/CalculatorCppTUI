@@ -18,23 +18,32 @@ struct RuntimeTypeError {
 };
 inline const std::string RuntimeTypeError::prefix = "RuntimeTypeError";
 
+[[noreturn]] inline void unreachable() {
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+    __assume(false);
+#else // GCC, Clang
+    __builtin_unreachable();
+#endif
+}
+
 // Enum representing the base types that can be stored in RuntimeTypedExprComponent
 enum class RuntimeBaseType : int8_t {
     Number,  // Numeric type
     NodePointer, // Unsigned interget pointed to specific node
     _Lambda, // Internal use for representing lambda functions
     _Storage, // Internal use for representing storage types (collections)
-};
-
-enum class RuntimeEvaluate : int8_t {
-    RuntimeEvaluate
+    _Operator_Lambda_Infix,
+    _Operator_Lambda_Postfix,
+    _Operator_Lambda_Prefix,
+    _Operator_Lambda_Constant,
+    _Stroage_Any,
 };
 
 // Forward declaration for RuntimeCompoundType (used later in RuntimeType)
 class RuntimeCompoundType;
 
 // Type alias for RuntimeType using std::variant for multiple data types
-using RuntimeType = std::variant<RuntimeBaseType, RuntimeCompoundType, RuntimeEvaluate>;
+using RuntimeType = std::variant<RuntimeBaseType, RuntimeCompoundType>;
 
 // Concept to ensure types used with RuntimeType are compatible
 template <typename T>
@@ -91,6 +100,16 @@ public:
     static RuntimeCompoundType Storage(std::vector<RuntimeType>&& base);
     static RuntimeCompoundType Lambda(const RuntimeType& Ret, const RuntimeType& Params);
     static RuntimeCompoundType Lambda(RuntimeType&& Ret, RuntimeType&& Params);
+
+    static RuntimeCompoundType RuntimeEvaluateLambdaInfix(const RuntimeType& Ret);
+    static RuntimeCompoundType RuntimeEvaluateLambdaInfix(RuntimeType&& Ret);
+    static RuntimeCompoundType RuntimeEvaluateLambdaPostfix(const RuntimeType& Ret);
+    static RuntimeCompoundType RuntimeEvaluateLambdaPostfix(RuntimeType&& Ret);
+    static RuntimeCompoundType RuntimeEvaluateLambdaPrefix(const RuntimeType& Ret);
+    static RuntimeCompoundType RuntimeEvaluateLambdaPrefix(RuntimeType&& Ret);
+    static RuntimeCompoundType RuntimeEvaluateLambdaConstant(const RuntimeType& Ret);
+    static RuntimeCompoundType RuntimeEvaluateLambdaConstant(RuntimeType&& Ret);
+
     static Result<RuntimeType, std::runtime_error> ParseString(const std::string& stringLikeType);
 
     // Funtion allow acessing mHashed

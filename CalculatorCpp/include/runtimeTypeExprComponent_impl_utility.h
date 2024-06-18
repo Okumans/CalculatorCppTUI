@@ -5,6 +5,8 @@
 #include <format>
 #include <algorithm>
 
+
+
 inline const Number& RuntimeTypedExprComponent::getNumber() const {
 	return std::get<Number>(*this);
 }
@@ -33,7 +35,7 @@ inline RuntimeType RuntimeTypedExprComponent::getDetailTypeHold() const {
 			std::is_same_v<std::decay_t<decltype(arg)>, NodePointer>) {
 			return arg.getType();
 		}
-		throw std::runtime_error("Invalid type in variant.");
+		unreachable();
 		}, *this);
 }
 
@@ -129,7 +131,7 @@ inline NodeFactory::NodePos RuntimeTypedExprComponent::toNodeExpression() const 
 		}, *this);
 }
 
-inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprComponent::fromNodeExpression(NodeFactory::NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions) {
+inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprComponent::fromNodeExpression(NodeFactory::NodePos rootNodeExpression, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency) {
 	switch (NodeFactory::Node::NodeState currNodeState{ NodeFactory::node(rootNodeExpression).nodeState })
 	{
 	case NodeFactory::Node::NodeState::LambdaFuntion:
@@ -165,7 +167,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> RuntimeTypedExprCom
 
 	case NodeFactory::Node::NodeState::Storage:
 	{
-		Result result = Storage::fromExpressionNode(rootNodeExpression, EvaluatorLambdaFunctions);
+		Result result = Storage::fromExpressionNode(rootNodeExpression, EvaluatorLambdaFunctions, nodeDependency);
 		if (result.isError())
 			return RuntimeError<RuntimeTypeError>(
 				result.getException(),
@@ -202,8 +204,10 @@ inline std::vector<std::string_view> splitString(std::string_view in, char sep) 
 }
 
 inline bool _fastCheckRuntimeTypeArgumentsType(const RuntimeType& baseType, const std::vector<RuntimeTypedExprComponent>& argumentsCheckType) {
-	if (std::holds_alternative<RuntimeEvaluate>(baseType) ||
-		(std::holds_alternative<RuntimeBaseType>(baseType) && std::get<RuntimeBaseType>(baseType) == RuntimeBaseType::NodePointer))
+	if (std::holds_alternative<RuntimeCompoundType>(baseType) && static_cast<int8_t>(std::get<RuntimeCompoundType>(baseType).Type) > 3)
+		throw std::runtime_error("Fatal Error: runtimeEvaluateType cannot be used in an argument and can lead to undefined behaviour. (this will happen only becuase user-written function put in runtimeEvaluateType as a argument somewhere.)");
+
+	if (std::holds_alternative<RuntimeBaseType>(baseType) && std::get<RuntimeBaseType>(baseType) == RuntimeBaseType::NodePointer)
 		return true;
 
 	if (!std::holds_alternative<RuntimeCompoundType>(baseType) ||
@@ -382,15 +386,18 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 
 			// Lambda parameter numbers is guarantree to be 2 (check at Lambda construction.)
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode.value) };
-			if (const auto& parametersType{ RuntimeCompoundType::getStorageInfo(*lambdaFunction.getLambdaInfo().ParamsType).Storage };
-				!((*parametersType)[0] == leftType && (*parametersType)[1] == rightType))
 
-				return RuntimeError<RuntimeTypeError>(
-					std::format("Parameters type must be equal to argument type. ({} != {})",
-						*lambdaFunction.getLambdaInfo().ParamsType,
-						RuntimeType(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({ leftType, rightType }))),
-					"getReturnType");
+			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
+				if (const auto& parametersType{ RuntimeCompoundType::getStorageInfo(*lambdaFunction.getLambdaInfo().ParamsType).Storage };
+					!((*parametersType)[0] == leftType && (*parametersType)[1] == rightType))
 
+					return RuntimeError<RuntimeTypeError>(
+						std::format("Parameters type must be equal to argument type. ({} != {})",
+							*lambdaFunction.getLambdaInfo().ParamsType,
+							RuntimeType(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({ leftType, rightType }))),
+						"getReturnType");
+			}
+			
 			resultMap[currNodePos] = *lambdaFunction.getLambdaInfo().ReturnType;
 		}
 
@@ -402,12 +409,15 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 
 			RuntimeType rightVal{ resultMap[currNode.rightPos] };
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode.value) };
-			if (*lambdaFunction.getLambdaInfo().ParamsType != rightVal)
-				return RuntimeError<RuntimeTypeError>(
-					std::format("Parameters type must be equal to argument type. ({} != {})",
-						*lambdaFunction.getLambdaInfo().ParamsType,
-						rightVal),
-					"getReturnType");
+
+			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
+				if (*lambdaFunction.getLambdaInfo().ParamsType != rightVal)
+					return RuntimeError<RuntimeTypeError>(
+						std::format("Parameters type must be equal to argument type. ({} != {})",
+							*lambdaFunction.getLambdaInfo().ParamsType,
+							rightVal),
+						"getReturnType");
+			}
 
 			resultMap[currNodePos] = *lambdaFunction.getLambdaInfo().ReturnType;
 		}
@@ -420,18 +430,20 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 
 			RuntimeType leftVal{ resultMap[currNode.leftPos] };
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode.value) };
-			if (*lambdaFunction.getLambdaInfo().ParamsType == leftVal)
-				return RuntimeError<RuntimeTypeError>(
-					std::format("Parameters type must be equal to argument type. ({} != {})",
-						*lambdaFunction.getLambdaInfo().ParamsType,
-						leftVal),
-					"getReturnType");
+			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
+				if (*lambdaFunction.getLambdaInfo().ParamsType == leftVal)
+					return RuntimeError<RuntimeTypeError>(
+						std::format("Parameters type must be equal to argument type. ({} != {})",
+							*lambdaFunction.getLambdaInfo().ParamsType,
+							leftVal),
+						"getReturnType");
+			}
 
 			resultMap[currNodePos] = *lambdaFunction.getLambdaInfo().ReturnType;
 		}
 
 		else {
-			std::cout << currNode.value << std::endl;
+			// std::cout << currNode.value << std::endl;
 		}
 
 		operationStack.pop();

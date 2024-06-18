@@ -26,9 +26,9 @@ inline void Evaluate::addOperatorFunction(Lambda&& operatorDefinition) {
 }
 
 
-inline Result<RuntimeTypedExprComponent> Evaluate::evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots) const {
+inline Result<RuntimeTypedExprComponent> Evaluate::evaluateExpressionTree(const std::vector<NodeFactory::NodePos>& roots, const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> nodeDependency) {
 
-	Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> evaluationResult{ Lambda::_NodeExpressionsEvaluator(roots, mOperatorFunctions) };
+	Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> evaluationResult{ Lambda::_NodeExpressionsEvaluator(roots, mOperatorFunctions, nodeDependency) };
 	
 	if (evaluationResult.isError())
 		return RuntimeError<EvaluationFailedError>(

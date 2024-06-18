@@ -29,8 +29,8 @@ inline bool NodePointer::isNodePointerValid() const {
 	return NodeFactory::validNode(mNodeExpression);
 }
 
-inline Result<RuntimeTypedExprComponent, std::runtime_error> NodePointer::getPointed(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction) const {
-	return RuntimeTypedExprComponent::fromNodeExpression(mNodeExpression, EvaluatorLambdaFunction);
+inline Result<RuntimeTypedExprComponent, std::runtime_error> NodePointer::getPointed(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction, const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency) const {
+	return RuntimeTypedExprComponent::fromNodeExpression(mNodeExpression, EvaluatorLambdaFunction, nodeDependency);
 }
 
 inline NodeFactory::NodePos NodePointer::getPointerIndex() const {

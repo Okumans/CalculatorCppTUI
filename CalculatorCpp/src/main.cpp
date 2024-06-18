@@ -24,7 +24,6 @@
                       std::chrono::duration<double> duration = end - start; \
                       std::cout << "Time taken: " << duration.count() << " seconds\n"
 
-
 void test(size_t basicOperationAmount) {
 	std::string buffer;
 	for (size_t i{ 0 }; i < basicOperationAmount; i++)
@@ -40,8 +39,6 @@ void test(size_t basicOperationAmount) {
 	Parser pas(eval.getEvaluationLambdaFunction());
 	initializeParser(pas);
 
-
-
 	std::cout << "LEXER benckmark (" << basicOperationAmount << " operations) -> ";
 	std::vector<Parser::Lexeme> lexResult;
 	{
@@ -49,7 +46,6 @@ void test(size_t basicOperationAmount) {
 		lexResult = lex.lexing(buffer).getValue();
 		BENCHMARK_END;
 	}
-
 
 	std::cout << "PARSER benckmark (" << basicOperationAmount << " operations) -> ";
 	std::vector<Parser::Lexeme> parsedResult;
@@ -59,7 +55,6 @@ void test(size_t basicOperationAmount) {
 		BENCHMARK_END;
 	}
 
-
 	std::cout << "EVALUATOR benckmark (" << basicOperationAmount << " operations) -> ";
 	BENCHMARK_START;
 	if (!pas.parserReady().has_value()) {
@@ -68,7 +63,7 @@ void test(size_t basicOperationAmount) {
 		if (!root.isError()) {
 			auto rootResult = root.moveValue();
 
-			if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
+			if (auto result = eval.evaluateExpressionTree(rootResult, pas.getNodeDependency()); !result.isError())
 				std::cout << "Result: " << std::fixed << result.getValue() << ", ";
 			else
 				std::cout << result.getException().what() << ", ";
@@ -138,17 +133,56 @@ void test(size_t basicOperationAmount) {
 //	for (auto element : splitedListSum) {
 //		positions.emplace_back(positions.back() + element);
 //	}
-//	
+//
 //	std::cout << delimeters << "\n";
 //	std::cout << positions << "\n";
 //}
+
+static void draw_node_graph(NodeFactory::NodePos nodePos) {
+	std::stack<std::pair<NodeFactory::NodePos, size_t>> st;
+	std::unordered_set<NodeFactory::NodePos> checked;
+	std::unordered_map<NodeFactory::NodePos, int> checked_time;
+	st.emplace(nodePos, 0);
+	while (!st.empty()) {
+		std::pair<NodeFactory::NodePos, size_t> topVal{ st.top() };
+		st.pop();
+
+		if (checked.contains(topVal.first)) {
+			continue;
+		}
+
+		checked.insert(topVal.first);
+
+		std::string graph_decoratiion;
+
+		for (int i{ 0 }; i < static_cast<int>(topVal.second) - 1; i++)
+		{
+			if (checked_time[i] >= std::pow(2, static_cast<int>(topVal.second)))
+				graph_decoratiion += "  ";
+			else
+				graph_decoratiion += "| ";
+		}
+
+		graph_decoratiion += "|-";
+
+		std::cout << graph_decoratiion << topVal.first << "\n";
+		checked_time[static_cast<int>(topVal.second) - 2]++;
+
+		const NodeFactory::Node& temp{ NodeFactory::node(topVal.first) };
+		if (NodeFactory::validNode(temp.leftPos))
+			st.emplace(temp.leftPos, topVal.second + 1);
+
+		if (NodeFactory::validNode(temp.rightPos))
+			st.emplace(temp.rightPos, topVal.second + 1);
+	}
+}
 
 int main(int argc, char* argv[])
 {
 	NodeFactory::reserve(500);
 
-	 //test(1'000'000); //  2.1 second (best)
-	 //return 0;
+	//test(1'000'000); //  2.1 second (best)
+	//return 0;
 
 	Lexer lex;
 	initializeLexer(lex);
@@ -158,8 +192,6 @@ int main(int argc, char* argv[])
 
 	Parser pas(eval.getEvaluationLambdaFunction());
 	initializeParser(pas);
-
-
 
 	std::string input{};
 	if (argc >= 2) {
@@ -195,9 +227,16 @@ int main(int argc, char* argv[])
 			}
 		}
 
+		else if (input == ":node-graph") {
+			size_t nodePos;
+			std::cin >> nodePos;
+			draw_node_graph(nodePos);
+			continue;
+		}
+
 		auto lexResult = lex.lexing(input, true);
 
-		if (lexResult.isError()) {	
+		if (lexResult.isError()) {
 			std::cout << lexResult.getException().what() << "\n\n";
 			continue;
 		}
@@ -227,8 +266,10 @@ int main(int argc, char* argv[])
 				auto rootResult{ root.moveValue() };
 				std::cout << ColorText<Color::Yellow>(" ⇒ ") << pas.printOpertatorTree(rootResult, eval.getEvaluationLambdaFunction()) << "\n";
 
+				//std::cout << pas.getNodeDependency() << "\n";
+
 				BENCHMARK_START;
-				if (auto result = eval.evaluateExpressionTree(rootResult); !result.isError())
+				if (auto result = eval.evaluateExpressionTree(rootResult, pas.getNodeDependency()); !result.isError())
 					std::cout << ColorText<Color::Green>(" ≡ ") << std::fixed << HighlightSyntax(result.getValue().toString()) << "\n";
 				else
 					std::cout << ColorText<Color::Red>(" (!) ") << HighlightSyntax(result.getException().what()) << "\n";
@@ -239,6 +280,10 @@ int main(int argc, char* argv[])
 			else {
 				std::cout << ColorText<Color::Red>("(!) ") << HighlightSyntax(root.getException().what()) << "\n";
 			}
+		}
+
+		else {
+			std::cout << pas.parserReady().value().what();
 		}
 
 		std::cout << "Node amount: " << NodeFactory::size() << "\n";

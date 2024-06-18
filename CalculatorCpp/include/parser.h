@@ -23,7 +23,6 @@ struct ParserSyntaxError {
 };
 inline const std::string ParserSyntaxError::prefix = "ParserSyntaxError";
 
-
 class Parser {
 public:
 	using OperatorLevel = size_t;
@@ -49,10 +48,10 @@ public:
 
 	// main functions
 	std::vector<Lexeme> parseNumbers(const std::vector<Lexeme>& lexemes) const;
-	Result<std::vector<NodeFactory::NodePos>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction) const;
-	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, const std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes) const;
+	Result<std::vector<NodeFactory::NodePos>> createOperatorTree(const std::vector<Lexeme>& parsedLexemes, std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction);
+	Result<NodeFactory::NodePos> createRawExpressionOperatorTree(const std::string& RawExpression, NodeFactory::Node::NodeState RawExpressionType, const std::unordered_map<Lexeme, Lambda>& EvaluatorLambdaFunction, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes);
 	std::pair<NodeFactory::NodePos, NodeFactory::NodePos> createRawExpressionStorage(const std::vector<NodeFactory::NodePos>& parsedExpressions) const; // return pair of [head, tail]
-	
+
 	// setters
 	void setBracketOperators(const std::vector<std::pair<Lexeme, Lexeme>>& bracketPairs);
 	void setOperatorLevels(const std::vector<std::pair<Lexeme, OperatorLevel>>& operatorPairs);
@@ -60,10 +59,11 @@ public:
 	void addBracketOperator(const Lexeme& openBracket, const Lexeme& closeBracket);
 	void setRawExpressionBracketEvalType(const std::vector<std::pair<Lexeme, NodeFactory::Node::NodeState>>& rawExpressionBracketEvalTypePairs);
 	void addRawExpressionBracketEvalType(const Lexeme& openBracketLexeme, NodeFactory::Node::NodeState rawExpressionBracketEvalType);
-	
+
 	bool isOperator(const Lexeme& lexeme) const;
 	Lambda::LambdaNotation getNotation(const Lexeme& oprLexeme) const;
 	OperatorLevel getOperatorLevel(const Lexeme& oprLexeme) const;
+	const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& getNodeDependency() const;
 	std::string printOpertatorTree(std::vector<NodeFactory::NodePos> trees, const std::unordered_map<Parser::Lexeme, Lambda>& EvaluatorLambdaFunctions) const;
 
 	std::optional<RuntimeError<ParserNotReadyError>> parserReady();
@@ -72,4 +72,6 @@ private:
 	std::unordered_set<Lexeme> mTempConstant;
 	std::optional<std::runtime_error> getLambdaType(std::vector<std::pair<std::string, RuntimeType>>& parametersWithTypes, std::string parameterExpression) const;
 	bool checkIfValidParameterName(const std::string& parameter) const;
+	Result<std::optional<std::string>, std::runtime_error> processIfReturnLambda(NodeFactory::NodePos possibleReturnedLambdaNode, std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction, const std::unordered_map<std::string, NodeFactory::NodePos>& nodeHaveDependency, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency) const;
+	inline static std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> mNodeDependency;
 };
