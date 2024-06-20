@@ -5,8 +5,6 @@
 #include <format>
 #include <algorithm>
 
-
-
 inline const Number& RuntimeTypedExprComponent::getNumber() const {
 	return std::get<Number>(*this);
 }
@@ -397,7 +395,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 							RuntimeType(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({ leftType, rightType }))),
 						"getReturnType");
 			}
-			
+
 			resultMap[currNodePos] = *lambdaFunction.getLambdaInfo().ReturnType;
 		}
 

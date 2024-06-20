@@ -6,9 +6,17 @@
 
 #define EXCEPT_RETURN(x, ...) \
 	do { \
-			if (x.isError()) { \
+			if (auto temp___ {x}; temp___.isError()) { \
 				__VA_ARGS__; \
-				return x.getException(); \
+				return temp___.getException(); \
+			} \
+	} while (0)
+
+#define EXCEPT_RETURN_OPT(x, ...) \
+	do { \
+			if (auto temp___ {x}; temp___.has_value()) { \
+				__VA_ARGS__; \
+				return temp___.value(); \
 			} \
 	} while (0)
 
@@ -22,37 +30,37 @@
 template <typename T, typename E = std::exception>
 class Result {
 private:
-    std::variant<T, E> mValueOrException;
+	std::variant<T, E> mValueOrException;
 
 public:
-    Result(const T& value) : mValueOrException(value) {}
-    Result(T&& value) : mValueOrException(std::move(value)) {}
-    Result(const E& exception) : mValueOrException(exception) {}
-    Result(E&& exception) : mValueOrException(std::move(exception)) {}
-    Result(const Result& other) : mValueOrException(other.mValueOrException) {}
-    Result(Result&& other) noexcept : mValueOrException(std::move(other.mValueOrException)) {}
+	Result(const T& value) : mValueOrException(value) {}
+	Result(T&& value) : mValueOrException(std::move(value)) {}
+	Result(const E& exception) : mValueOrException(exception) {}
+	Result(E&& exception) : mValueOrException(std::move(exception)) {}
+	Result(const Result& other) : mValueOrException(other.mValueOrException) {}
+	Result(Result&& other) noexcept : mValueOrException(std::move(other.mValueOrException)) {}
 
-    bool isError() const {
-        return std::holds_alternative<E>(mValueOrException);
-    }
+	bool isError() const {
+		return std::holds_alternative<E>(mValueOrException);
+	}
 
-    const T& getValue() const {
-        return std::get<T>(mValueOrException);
-    }
+	const T& getValue() const {
+		return std::get<T>(mValueOrException);
+	}
 
-    const E& getException() const {
-        return std::get<E>(mValueOrException);
-    }
+	const E& getException() const {
+		return std::get<E>(mValueOrException);
+	}
 
-    const T& getValue_or(const T& orValue) const {
-        return isError() ? orValue : std::get<T>(mValueOrException);
-    }
+	const T& getValue_or(const T& orValue) const {
+		return isError() ? orValue : std::get<T>(mValueOrException);
+	}
 
-    T&& getValue_or(T&& orValue) const {
-        return isError() ? std::move(orValue) : std::get<T>(mValueOrException);
-    }
+	T&& getValue_or(T&& orValue) const {
+		return isError() ? std::move(orValue) : std::get<T>(mValueOrException);
+	}
 
-    T moveValue() {
-        return std::get<T>(std::move(mValueOrException));
-    }
+	T moveValue() {
+		return std::get<T>(std::move(mValueOrException));
+	}
 };

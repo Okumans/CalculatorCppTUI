@@ -69,9 +69,51 @@ public:
 	std::optional<RuntimeError<ParserNotReadyError>> parserReady();
 	void _ignore_parserReady();
 private:
-	std::unordered_set<Lexeme> mTempConstant;
-	std::optional<std::runtime_error> getLambdaType(std::vector<std::pair<std::string, RuntimeType>>& parametersWithTypes, std::string parameterExpression) const;
-	bool checkIfValidParameterName(const std::string& parameter) const;
-	Result<std::optional<std::string>, std::runtime_error> processIfReturnLambda(NodeFactory::NodePos possibleReturnedLambdaNode, std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction, const std::unordered_map<std::string, NodeFactory::NodePos>& nodeHaveDependency, std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency) const;
 	inline static std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> mNodeDependency;
+	std::unordered_set<Lexeme> mTempConstant;
+
+	std::optional<std::runtime_error> getLambdaType(
+		std::vector<std::pair<std::string, RuntimeType>>& parametersWithTypes,
+		std::string parameterExpression) const;
+
+	bool checkIfValidParameterName(const std::string& parameter) const;
+
+	Result<std::optional<std::string>, std::runtime_error> processIfReturnLambda(
+		NodeFactory::NodePos possibleReturnedLambdaNode,
+		std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction,
+		const std::unordered_map<std::string, NodeFactory::NodePos>& nodeHaveDependency,
+		std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency
+	) const;
+
+	std::optional<std::runtime_error> processInfixOperation(
+		std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction,
+		std::stack<NodeFactory::NodePos>& resultStack,
+		std::stack<std::string>& operatorStack,
+		const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes,
+		std::unordered_map<std::string, NodeFactory::NodePos>& nodeHaveDependency
+	);
+
+	std::optional<std::runtime_error> consideringCapacityResultStackPush(
+		std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction,
+		std::stack<NodeFactory::NodePos>& resultStack,
+		std::stack<std::string>& operatorStack,
+		const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& lambdaHeadNodes,
+		std::unordered_map<std::string, NodeFactory::NodePos>& nodeHaveDependency,
+		long long& resultStackCapacity,
+		NodeFactory::NodePos source
+	);
+
+	void consideringCapacityOperatorStackPush(
+		const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction,
+		std::stack<std::string>& operatorStack,
+		long long& resultStackCapacity,
+		const std::string& source
+	);
+
+	void consideringCapacityOperatorStackPush(
+		const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunction,
+		std::stack<std::string>& operatorStack,
+		long long& resultStackCapacity,
+		std::string&& source
+	);
 };

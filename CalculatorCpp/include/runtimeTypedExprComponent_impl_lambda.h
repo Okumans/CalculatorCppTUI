@@ -401,7 +401,6 @@ inline void Lambda::_overrideType(const RuntimeType& Ret, const RuntimeType& Par
 	mLambdaInfo = RuntimeCompoundType::getLambdaInfo(mType);
 }
 
-
 inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, const LambdaArguments& arguments) const {
 	if (arguments.size() != mLambdaInfo.ParamsNumbers)
 		return RuntimeError<RuntimeTypeError>(
@@ -516,9 +515,8 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 	std::unordered_map<NodeFactory::NodePos, std::optional<RuntimeTypedExprComponent>> resultMap;
 
 	std::unordered_map<NodePos, NodePos> reversedNodeDependency;
-	for (const auto& [key, value] : nodeDependency) 
+	for (const auto& [key, value] : nodeDependency)
 		reversedNodeDependency.try_emplace(value, key);
-	
 
 	operationStack.push(rootNodeExpression);
 	while (!operationStack.empty()) {
@@ -546,7 +544,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 				resultMap[currNodePos] = Storage::NullStorage();
 
 			else if (EvaluatorLambdaFunctions.contains(currNode->value) &&
-				EvaluatorLambdaFunctions.at(currNode->value).getNotation() == Lambda::LambdaNotation::Constant) 
+				EvaluatorLambdaFunctions.at(currNode->value).getNotation() == Lambda::LambdaNotation::Constant)
 			{
 				Lambda constOperator{ EvaluatorLambdaFunctions.at(currNode->value) };
 				Result<RuntimeTypedExprComponent, std::runtime_error>&& constOperatorResult{ constOperator.evaluate(EvaluatorLambdaFunctions, {}) };
@@ -667,7 +665,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			RuntimeTypedExprComponent&& rightVal{ std::move(resultMap[currNode->rightPos].value()) };
 
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode->value) };
-			
+
 			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
 				if (const auto& parametersType{ RuntimeCompoundType::getStorageInfo(*lambdaFunction.getLambdaInfo().ParamsType).Storage };
 					parametersType->size() != 1)

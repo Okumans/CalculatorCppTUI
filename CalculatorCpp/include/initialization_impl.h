@@ -92,7 +92,6 @@ const Result<Lambda, std::runtime_error> absLambdaFunction = Lambda::fromFunctio
 	}
 );
 
-
 // modulo lambdaFunction implementation
 const Result<Lambda, std::runtime_error> moduloLambdaFunction = Lambda::fromFunction(
 	"%",																									// LambdaFunctionSignature	= "%"
@@ -112,7 +111,6 @@ const Result<Lambda, std::runtime_error> divideNoReminderLambdaFunction = Lambda
 		return Number(std::floorl(args[0].getNumber() / args[1].getNumber()));
 	}
 );
-
 
 const Result<Lambda, std::runtime_error> utc_time = Lambda::fromFunction(
 	"utc_time",
@@ -234,7 +232,7 @@ const auto assignNumberFunction = [](const std::unordered_map<Parser::Lexeme, La
 			return Number(0);
 		}
 	);
-};
+	};
 
 const Result<Lambda, std::runtime_error> getNumberFunction = Lambda::fromFunction(
 	"@",																									// LambdaFunctionSignature	= "@"

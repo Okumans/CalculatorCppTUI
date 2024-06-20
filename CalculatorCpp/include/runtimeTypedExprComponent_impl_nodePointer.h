@@ -1,5 +1,5 @@
 #ifndef RUNTIME_TYPED_EXPR_COMPONENT_IMPL_NODEPOINTER
-#define RUNTIME_TYPED_EXPR_COMPONENT_IMPL_NODEPOINTER 
+#define RUNTIME_TYPED_EXPR_COMPONENT_IMPL_NODEPOINTER
 
 #include "unordered_map"
 #include "runtimeTypedExprComponent.h"
@@ -45,7 +45,6 @@ inline void NodePointer::changePoint(NodePos target) {
 	mNodeExpression = target;
 }
 
-
 inline std::string NodePointer::toString() const {
 	return std::to_string(mNodeExpression);
 }
@@ -53,7 +52,5 @@ inline std::string NodePointer::toString() const {
 inline NodeFactory::NodePos NodePointer::generateExpressionTree() const {
 	return mNodeExpression; // always valid.
 }
-
-
 
 #endif // RUNTIME_TYPED_EXPR_COMPONENT_IMPL_NODEPOINTER

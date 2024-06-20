@@ -6,7 +6,6 @@
 #include "parser.h"
 #include "evaluation.h"
 
-
 #ifndef N_LEXER
 void initializeLexer(Lexer& lexer);
 std::function<std::vector<std::string>(const std::string&)> initializeStaticLexer(const std::vector<std::string>& extendsKeywords);
@@ -21,8 +20,6 @@ void initializeParser(Parser& parser);
 template<typename Floating>
 void initializeEvaluator(Evaluate& evaluator);
 #endif // N_EVALUATE
-
-
 
 #if !defined(N_LEXER) && !defined(N_PARSER) && !defined(N_EVALUATE)
 //template<typename Floating = long double>

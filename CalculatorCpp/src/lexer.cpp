@@ -205,19 +205,19 @@ Result<std::vector<std::string>, std::runtime_error> Lexer::lexing(const std::st
 		std::string errorMessage;
 		size_t unvalid_ind_ind{ 0 };
 		for (size_t _ind{ 0 }; _ind < currContent.size(); _ind++) {
-			while (unvalid_ind_ind + 1 < unvalidPosition.size() && _ind > unvalidPosition[unvalid_ind_ind]) 
+			while (unvalid_ind_ind + 1 < unvalidPosition.size() && _ind > unvalidPosition[unvalid_ind_ind])
 				unvalid_ind_ind++;
 
 			if (_ind == unvalidPosition[unvalid_ind_ind])
 				errorMessage += ColorText<Color::Bright_Red>(currContent[_ind]);
-			else 
+			else
 				errorMessage += ColorText<Color::Green>(currContent[_ind]);
 		}
 		return RuntimeError<LexingError>(
 			std::format("Found unvalid characters While attempting to lex \"{}\".", errorMessage),
 			"Lexer::lexing");
 	}
-	
+
 	return temp;
 }
 

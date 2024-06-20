@@ -32,7 +32,7 @@ bool TrieTree::remove(const std::string& word) {
 	std::vector<std::pair<TrieNode*, char>> path;
 
 	for (char chr : word) {
-		if (!currNode->children.contains(chr)) 
+		if (!currNode->children.contains(chr))
 			return false;
 		path.emplace_back(currNode, chr);
 		currNode = currNode->children[chr].get();
@@ -40,7 +40,6 @@ bool TrieTree::remove(const std::string& word) {
 
 	if (!currNode->isEndOfWord)
 		return false;
-	
 
 	currNode->isEndOfWord = false;
 	validWords.erase(word);
@@ -48,14 +47,13 @@ bool TrieTree::remove(const std::string& word) {
 	for (auto it = path.rbegin(); it != path.rend(); ++it) {
 		TrieNode* node = it->first;
 		char chr = it->second;
-		if (node->children[chr]->children.empty() && !node->children[chr]->isEndOfWord) 
+		if (node->children[chr]->children.empty() && !node->children[chr]->isEndOfWord)
 			node->children.erase(chr);
-		else 
+		else
 			break;
 	}
 	return true;
 }
-
 
 TrieTree::StartsWithsInstance::StartsWithsInstance(const TrieTree& trieTree) : mRootNode{ trieTree.root.get() }, mCurrentTrieNode{ trieTree.root.get() } {}
 

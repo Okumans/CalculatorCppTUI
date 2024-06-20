@@ -16,7 +16,6 @@
 
 class Parser;
 
-
 struct EvaluationDefinitionError {
 	static const std::string prefix;
 };

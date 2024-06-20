@@ -7,15 +7,15 @@ inline Number::Number(long double number) :
 	BaseRuntimeTypedExprComponent{
 		RuntimeBaseType::Number,
 		NodeFactory::NodePosNull
-	},
-	mNumber{ number } {}
+},
+mNumber{ number } {}
 
 inline Number::Number() :
 	BaseRuntimeTypedExprComponent{
 		RuntimeBaseType::Number,
 		NodeFactory::NodePosNull
-	},
-	mNumber{ 0 } {}
+},
+mNumber{ 0 } {}
 
 inline Number Number::fromExpressionNode(NodePos numberExpression) {
 	return Number(numberExpression, true);

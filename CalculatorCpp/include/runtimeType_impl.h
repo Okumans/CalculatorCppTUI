@@ -77,7 +77,7 @@ inline RuntimeCompoundType RuntimeCompoundType::Storage(Args&&... base) {
 
 // Create a RuntimeCompoundType with a vector of RuntimeType elements
 inline RuntimeCompoundType RuntimeCompoundType::Storage(const std::vector<RuntimeType>& base) {
-	for (const RuntimeType& element : base) 
+	for (const RuntimeType& element : base)
 		assert(
 			(std::holds_alternative<RuntimeBaseType>(element) && static_cast<int8_t>(std::get<RuntimeBaseType>(element)) > 3) || \
 			(std::holds_alternative<RuntimeCompoundType>(element) && static_cast<int8_t>(std::get<RuntimeCompoundType>(element).Type) > 3)
@@ -88,7 +88,7 @@ inline RuntimeCompoundType RuntimeCompoundType::Storage(const std::vector<Runtim
 
 // Create a RuntimeCompoundType with a rvalue vector of RuntimeType elements
 inline RuntimeCompoundType RuntimeCompoundType::Storage(std::vector<RuntimeType>&& base) {
-	for (const RuntimeType& element : base) 		
+	for (const RuntimeType& element : base)
 		assert(
 			(std::holds_alternative<RuntimeBaseType>(element) && static_cast<int8_t>(std::get<RuntimeBaseType>(element)) > 3) || \
 			(std::holds_alternative<RuntimeCompoundType>(element) && static_cast<int8_t>(std::get<RuntimeCompoundType>(element).Type) > 3)
