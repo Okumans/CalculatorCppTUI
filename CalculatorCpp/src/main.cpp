@@ -177,6 +177,46 @@ static void draw_node_graph(NodeFactory::NodePos nodePos) {
 	}
 }
 
+Result<std::vector<std::string>> extractVarNames(const std::string& input) {
+	std::vector<std::string> varNames;
+	size_t pos = 0;
+
+	while (pos < input.size()) {
+		// Find the next occurrence of "var"
+		size_t varPos = input.find("var", pos);
+		if (varPos == std::string::npos) {
+			break; // No more "var" found
+		}
+
+		// Ensure "var" is surrounded by whitespace
+		if ((varPos == 0 || std::isspace(input[varPos - 1])) &&
+			(varPos + 3 == input.size() || std::isspace(input[varPos + 3]))) {
+			// Check if there is another "var" immediately after the current one
+			if (size_t nextVarPos = input.find("var", varPos + 3); nextVarPos != std::string::npos && nextVarPos == varPos + 3) {
+				return RuntimeError<ParserSyntaxError>("Two 'var' keywords cannot be next to each other.");
+			}
+
+			// Find the start of the variable name
+			size_t start = varPos + 3;
+			start = input.find_first_not_of(' ', start);
+
+			if (start != std::string::npos) {
+				// Find the end of the variable name
+				size_t end = input.find(' ', start);
+				if (end == std::string::npos) {
+					end = input.size();
+				}
+				// Extract the variable name
+				varNames.push_back(input.substr(start, end - start));
+			}
+		}
+		// Move the position forward
+		pos = varPos + 3;
+	}
+
+	return varNames;
+}
+
 int main(int argc, char* argv[])
 {
 	NodeFactory::reserve(500);
@@ -225,6 +265,7 @@ int main(int argc, char* argv[])
 				std::cout << std::format("Node({}): \n\t value-----\t: \"{}\" \n\t nodeState-\t: {}\n\t leftPos---\t: {} \n\t rightPos--\t: {} \n\t paramsType\t: [{}]\n", nodePosition, nNode.value, (int)nNode.nodeState, nNode.leftPos, nNode.rightPos, utilityStorageString);
 				nodePosition++;
 			}
+			continue;
 		}
 
 		else if (input == ":node-graph") {
@@ -232,6 +273,16 @@ int main(int argc, char* argv[])
 			std::cin >> nodePos;
 			draw_node_graph(nodePos);
 			continue;
+		}
+
+		auto varNames = extractVarNames(input);
+		if (varNames.isError()) {
+			std::cout << varNames.getException().what() << "\n\n";
+			continue;
+		}
+
+		for (const std::string& varName : varNames.getValue()) {
+			lex.addKeyword(varName);
 		}
 
 		auto lexResult = lex.lexing(input, true);
@@ -248,6 +299,9 @@ int main(int argc, char* argv[])
 
 		auto parsedResult = pas.parseNumbers(lexResult.getValue());
 
+		if (parsedResult.empty())
+			continue;
+
 		// loadspliter(pas, parsedResult);
 
 		//ss.str("");
@@ -263,22 +317,22 @@ int main(int argc, char* argv[])
 			auto root = pas.createOperatorTree(parsedResult, eval.getEvaluationLambdaFunction());
 
 			if (!root.isError()) {
-				auto rootResult{ root.moveValue() };
-				std::cout << ColorText<Color::Yellow>(" ⇒ ") << pas.printOpertatorTree(rootResult, eval.getEvaluationLambdaFunction()) << "\n";
+				if (root.getValue().empty())
+					continue;
 
-				//std::cout << pas.getNodeDependency() << "\n";
+				std::cout << ColorText<Color::Yellow>(" 󰺢 ") << pas.printOpertatorTree(root.getValue(), eval.getEvaluationLambdaFunction()) << "\n";
 
 				BENCHMARK_START;
-				if (auto result = eval.evaluateExpressionTree(rootResult, pas.getNodeDependency()); !result.isError())
-					std::cout << ColorText<Color::Green>(" ≡ ") << std::fixed << HighlightSyntax(result.getValue().toString()) << "\n";
+				if (auto result = eval.evaluateExpressionTree(root.getValue(), pas.getNodeDependency()); !result.isError())
+					std::cout << ColorText<Color::Green>("  ") << std::fixed << HighlightSyntax(result.getValue().toString()) << "\n";
 				else
-					std::cout << ColorText<Color::Red>(" (!) ") << HighlightSyntax(result.getException().what()) << "\n";
+					std::cout << ColorText<Color::Red>("  ") << HighlightSyntax(result.getException().what()) << "\n";
 				BENCHMARK_END;
 
 				// NodeFactory::freeAll();
 			}
 			else {
-				std::cout << ColorText<Color::Red>("(!) ") << HighlightSyntax(root.getException().what()) << "\n";
+				std::cout << ColorText<Color::Red>(" ") << HighlightSyntax(root.getException().what()) << "\n";
 			}
 		}
 

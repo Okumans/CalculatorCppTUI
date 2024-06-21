@@ -429,7 +429,7 @@ inline Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePo
 			RuntimeType leftVal{ resultMap[currNode.leftPos] };
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode.value) };
 			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
-				if (*lambdaFunction.getLambdaInfo().ParamsType == leftVal)
+				if (*lambdaFunction.getLambdaInfo().ParamsType != leftVal)
 					return RuntimeError<RuntimeTypeError>(
 						std::format("Parameters type must be equal to argument type. ({} != {})",
 							*lambdaFunction.getLambdaInfo().ParamsType,

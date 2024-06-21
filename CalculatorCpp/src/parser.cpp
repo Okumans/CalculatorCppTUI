@@ -541,7 +541,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 
 			if (mRawExpressionBracketEvalTypes.contains(openBracket)) {
 				Lexeme operatorNodeValue;
-				if (const auto prevIt{ *std::prev(it) }; strictedIsNumber(prevIt) || checkOperatorEvalTypeState(prevIt, Lambda::LambdaNotation::Constant)) {
+				if (const auto prevIt{ *std::prev(it) }; strictedIsNumber(prevIt, true) || checkOperatorEvalTypeState(prevIt, Lambda::LambdaNotation::Constant)) {
 					auto operatorNodeRawValue = topPopNotEmpty(resultStack);
 					EXCEPT_RETURN(operatorNodeRawValue);
 					operatorNodeValue = NodeFactory::node(operatorNodeRawValue.getValue()).value;
@@ -657,7 +657,8 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 				return std::vector<NodeFactory::NodePos>{}; // return null
 
 			// if current expression is argument of postfix operator
-			while (!operatorStack.empty() && checkOperatorEvalTypeState(operatorStack.top(), Lambda::LambdaNotation::Postfix) && !resultStack.empty()) {
+			size_t consider_size{ 0 };
+			while (!operatorStack.empty() && operatorStack.size() > consider_size && checkOperatorEvalTypeState(operatorStack.top(), Lambda::LambdaNotation::Postfix) && !resultStack.empty()) {
 				auto operatorNode = NodeFactory::create(topPopNotEmpty(operatorStack).getValue()); // guarantee that operatorNodeValue will always contains a value.
 				auto prefixOperandNodeValue = getLambdaHeadNodeIfIsLambda(topPopNotEmpty(resultStack), lambdaHeadNodes);
 				EXCEPT_RETURN(prefixOperandNodeValue);
@@ -677,6 +678,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 						resultStackCapacity,
 						std::move(*possibleNodeLambdaReturnResult.moveValue())
 					);
+					consider_size++;
 				}
 				else
 					EXCEPT_RETURN_OPT(
@@ -900,6 +902,12 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 	auto fullyParsedOperationTree = pas.createOperatorTree(parsedNumberOperationTree, EvaluatorLambdaFunctionSnapshot);
 	EXCEPT_RETURN(fullyParsedOperationTree);
 
+	if (fullyParsedOperationTree.getValue().empty())
+		return RuntimeError<ParserSyntaxError>(
+			"Lambda Expression must return a value.",
+			"Parser::createRawExpressionOperatorTree"
+		);
+
 	NodeFactory::NodePos operatorNode;
 	NodeFactory::NodePos lambdaOperatorHeadNode;
 
@@ -1002,17 +1010,17 @@ static std::string _printOpertatorTree(NodeFactory::NodePos tree, const std::uno
 	{
 		using enum Lambda::LambdaNotation;
 	case Prefix:
-		result << (NodeFactory::validNode(treeNode.leftPos) ? _printOpertatorTree(treeNode.leftPos, mOperatorEvalTypes, _level + 1) : "null")
-			<< " " << ColorText<Color::Cyan>(treeNode.value);
+		result << "(" << (NodeFactory::validNode(treeNode.leftPos) ? _printOpertatorTree(treeNode.leftPos, mOperatorEvalTypes, _level + 1) : "null")
+			<< " " << ColorText<Color::Cyan>(treeNode.value) << ")";
 		break;
 	case Infix:
-		result << (NodeFactory::validNode(treeNode.leftPos) ? _printOpertatorTree(treeNode.leftPos, mOperatorEvalTypes, _level + 1) : "null")
+		result << "(" << (NodeFactory::validNode(treeNode.leftPos) ? _printOpertatorTree(treeNode.leftPos, mOperatorEvalTypes, _level + 1) : "null")
 			<< " " << ColorText<Color::Cyan>(treeNode.value) << " "
-			<< (NodeFactory::validNode(treeNode.rightPos) ? _printOpertatorTree(treeNode.rightPos, mOperatorEvalTypes, _level + 1) : "null");
+			<< (NodeFactory::validNode(treeNode.rightPos) ? _printOpertatorTree(treeNode.rightPos, mOperatorEvalTypes, _level + 1) : "null") << ")";
 		break;
 	case Postfix:
-		result << ColorText<Color::Cyan>(treeNode.value) << " "
-			<< (NodeFactory::validNode(treeNode.rightPos) ? _printOpertatorTree(treeNode.rightPos, mOperatorEvalTypes, _level + 1) : "null");
+		result << "(" << ColorText<Color::Cyan>(treeNode.value) << " "
+			<< (NodeFactory::validNode(treeNode.rightPos) ? _printOpertatorTree(treeNode.rightPos, mOperatorEvalTypes, _level + 1) : "null") << ")";
 		break;
 	default:
 		break;
