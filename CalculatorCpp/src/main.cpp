@@ -138,6 +138,7 @@ void test(size_t basicOperationAmount) {
 //	std::cout << positions << "\n";
 //}
 
+
 static void draw_node_graph(NodeFactory::NodePos nodePos) {
 	std::stack<std::pair<NodeFactory::NodePos, size_t>> st;
 	std::unordered_set<NodeFactory::NodePos> checked;

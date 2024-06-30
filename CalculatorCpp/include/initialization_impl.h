@@ -145,9 +145,10 @@ const auto sigmaLambdaFunction = [](const std::unordered_map<Parser::Lexeme, Lam
 
 			long double summation{ 0 };
 			const Lambda& calcFunction{ args[1].getLambda() };
-			for (; start < stop; start++)
-				summation += calcFunction.evaluate(EvaluatorLambdaFunction, static_cast<long double>(start)).getValue().getNumber();
-
+			for (; start < stop; start++) {
+				auto temp = calcFunction.evaluate(EvaluatorLambdaFunction, static_cast<long double>(start)).getValue().getNumber();
+				summation += temp.getNumber();
+			}
 			return Number(summation);
 		}
 	);

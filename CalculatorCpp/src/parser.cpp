@@ -892,7 +892,7 @@ Result<NodeFactory::NodePos> Parser::createRawExpressionOperatorTree(const std::
 		}
 	}
 
-	else if (variableLexemesWithTypes.empty() && RawExpressionType == NodeFactory::Node::NodeState::LambdaFuntion)
+	else if (!foundParameterSlot && variableLexemesWithTypes.empty() && RawExpressionType == NodeFactory::Node::NodeState::LambdaFuntion)
 		variableLexemesWithTypes.emplace_back("_", RuntimeBaseType::_Storage);
 
 	auto operationTree = initializeStaticLexer(pas.mTempConstant)(std::string(rawOperationTree));

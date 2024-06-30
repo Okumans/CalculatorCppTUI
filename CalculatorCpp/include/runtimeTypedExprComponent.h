@@ -141,7 +141,7 @@ private:
 	Lambda(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
 	Lambda(std::string&& lambdaFunctionSignature, RuntimeCompoundType&& lambdaType, LambdaNotation lambdaNotation, std::function<RuntimeTypedExprComponent(LambdaArguments)>&& lambdaFunction);
 	Lambda(const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
-	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, std::unordered_map<NodePos, NodePos> nodeDependency);
+	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, std::unordered_map<NodePos, NodePos> nodeDependency, bool forceWithArgument = false);
 	static Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> _NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency);
 	static void findAndReplaceConstant(NodeFactory::NodePos root, const std::unordered_map<std::string, NodeFactory::NodePos>& replacement);
 	template<RuntimeTypedExprComponentRequired ...Args>

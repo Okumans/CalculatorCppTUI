@@ -365,14 +365,15 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_uncheckedE
 		evaluatorLambdaFunctionsSnapshot.try_emplace(parameters[ind].first, tempFunc.moveValue());
 	}
 
-	if (returnValueNeedConstantReplacement)
+	if (returnValueNeedConstantReplacement) {
 		findAndReplaceConstant(std::get<NodePos>(mLambdaFunction), parameterConstantsReplacement);
-
+	}
 	Result<RuntimeTypedExprComponent, std::runtime_error>&& res{
 		_NodeExpressionEvaluate(
 			std::get<NodePos>(mLambdaFunction),
 			evaluatorLambdaFunctionsSnapshot,
-			nodeDependency
+			nodeDependency,
+			true
 		)
 	};
 
@@ -509,7 +510,8 @@ inline Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> Lambda
 inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpressionEvaluate(
 	NodePos rootNodeExpression,
 	std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions,
-	std::unordered_map<NodePos, NodePos> nodeDependency
+	std::unordered_map<NodePos, NodePos> nodeDependency,
+	bool forceWithArgument
 ) {
 	std::stack<NodeFactory::NodePos> operationStack;
 	std::unordered_map<NodeFactory::NodePos, std::optional<RuntimeTypedExprComponent>> resultMap;
@@ -570,7 +572,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 		else if (currNode->nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
 			std::vector<NodeFactory::NodePos> expressions;
 
-			if (currNode->parametersWithType.size()) {
+			if (currNode->parametersWithType.size() && !forceWithArgument) {
 				Result<Lambda, std::runtime_error> lambdaFunctionResult{
 					Lambda::fromExpressionNode(currNodePos, EvaluatorLambdaFunctions)
 				};
