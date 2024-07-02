@@ -1,3 +1,6 @@
+#include "runtimeType_demo.h"
+
+#if false
 // Ensures inclusion only once
 #pragma once
 
@@ -176,3 +179,5 @@ struct std::hash<RuntimeType> {
 };
 
 #include "runtimeType_impl.h"
+
+#endif

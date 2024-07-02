@@ -257,7 +257,7 @@ int main(int argc, char* argv[])
 				const NodeFactory::Node& nNode{ NodeFactory::node(nodePosition) };
 				std::string utilityStorageString;
 				for (const auto& [paramName, paramType] : nNode.parametersWithType) {
-					utilityStorageString += paramName + ": " + RuntimeTypeToString(paramType) + ", ";
+					utilityStorageString += paramName + ": " + paramType.toString() + ", ";
 				}
 				if (nNode.parametersWithType.size()) {
 					utilityStorageString.pop_back();

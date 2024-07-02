@@ -16,21 +16,6 @@ class RuntimeTypedExprComponent;
 template <typename T>
 concept RuntimeTypedExprComponentRequired = std::is_convertible_v<T, RuntimeTypedExprComponent>;
 
-struct LambdaConstructionError {
-	static const std::string prefix;
-};
-inline const std::string LambdaConstructionError::prefix = "LambdaConstructionError";
-
-struct LambdaEvaluationError {
-	static const std::string prefix;
-};
-inline const std::string LambdaEvaluationError::prefix = "LambdaEvaluationError";
-
-struct StorageEvaluationError {
-	static const std::string prefix;
-};
-inline const std::string StorageEvaluationError::prefix = "StorageEvaluationError";
-
 class BaseRuntimeTypedExprComponent {
 protected:
 	using NodePos = NodeFactory::NodePos;
@@ -77,7 +62,7 @@ protected:
 
 std::vector<std::string_view> splitString(std::string_view in, char sep);
 bool _fastCheckRuntimeTypeArgumentsType(const RuntimeType& baseType, const std::vector<RuntimeTypedExprComponent>& argumentsCheckType);
-Result<RuntimeType, std::runtime_error> getReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, std::unordered_map<NodeFactory::NodePos, RuntimeType>* nodesTypeCache = nullptr);
+Result<RuntimeType, std::runtime_error> getExpressionReturnType(NodeFactory::NodePos rootExpressionNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, std::unordered_map<NodeFactory::NodePos, RuntimeType>* nodesTypeCache = nullptr);
 
 class Number : public BaseRuntimeTypedExprComponent {
 public:
@@ -99,7 +84,7 @@ private:
 class Lambda : public BaseRuntimeTypedExprComponent {
 public:
 	using LambdaArguments = std::vector<RuntimeTypedExprComponent>;
-	enum class LambdaNotation {
+	enum class LambdaNotation : uint8_t {
 		Infix,
 		Postfix,
 		Prefix,
@@ -111,8 +96,8 @@ public:
 	Lambda(Lambda&& other) noexcept;
 	Lambda& operator=(Lambda&& other) noexcept;
 
-	static Result<Lambda, std::runtime_error> fromFunction(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
-	static Result<Lambda, std::runtime_error> fromFunction(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction, const LambdaArguments& testArgument);
+	static Result<Lambda, std::runtime_error> fromFunction(const std::string& lambdaFunctionSignature, const RuntimeType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
+	static Result<Lambda, std::runtime_error> fromFunction(const std::string& lambdaFunctionSignature, const RuntimeType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction, const LambdaArguments& testArgument);
 	static Result<Lambda, std::runtime_error> fromExpressionNode(NodePos lambdaFunctionRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions);
 	static Lambda LambdaConstant(const std::string& functionSignature, const RuntimeTypedExprComponent& constValue);
 	static Lambda LambdaConstant(std::string&& functionSignature, RuntimeTypedExprComponent&& constValue);
@@ -124,7 +109,11 @@ public:
 	Result<RuntimeTypedExprComponent, std::runtime_error> evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, const LambdaArguments& arguments) const;
 	Result<RuntimeTypedExprComponent, std::runtime_error> evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const LambdaArguments& arguments) const;
 	Result<NodePos, std::runtime_error> getExpressionTree(const LambdaArguments& arguments) const;
-	RuntimeCompoundType::LambdaInfo getLambdaInfo() const;
+	
+	RuntimeType getReturnType() const;
+	RuntimeType getParamsType() const;
+	size_t getParamsSize() const;
+
 	std::optional<std::string_view> getLambdaSignature() const;
 	LambdaNotation getNotation() const;
 	void setNotation(LambdaNotation notation);
@@ -132,26 +121,35 @@ public:
 	NodePos generateExpressionTree() const override;
 
 private:
-	RuntimeCompoundType::LambdaInfo mLambdaInfo;
+	// member variables
+	size_t mLambdaParamsTypeSize;
 	LambdaNotation mLambdaNotation;
-
 	std::variant<std::shared_ptr<std::function<RuntimeTypedExprComponent(LambdaArguments)>>, NodePos> mLambdaFunction;
 	std::optional<std::string> mLambdaFunctionSignature;
 
-	Lambda(const std::string& lambdaFunctionSignature, const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
-	Lambda(std::string&& lambdaFunctionSignature, RuntimeCompoundType&& lambdaType, LambdaNotation lambdaNotation, std::function<RuntimeTypedExprComponent(LambdaArguments)>&& lambdaFunction);
-	Lambda(const RuntimeCompoundType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
+	// privat constructors
+	Lambda(const std::string& lambdaFunctionSignature, const RuntimeType& lambdaType, LambdaNotation lambdaNotation, const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction);
+	Lambda(std::string&& lambdaFunctionSignature, RuntimeType&& lambdaType, LambdaNotation lambdaNotation, std::function<RuntimeTypedExprComponent(LambdaArguments)>&& lambdaFunction);
+	Lambda(const RuntimeType& lambdaType, LambdaNotation lambdaNotation, NodePos lambdaFunctionRootNode);
+	
+	// evaluator
 	static Result<RuntimeTypedExprComponent, std::runtime_error> _NodeExpressionEvaluate(NodePos rootNodeExpression, std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, std::unordered_map<NodePos, NodePos> nodeDependency, bool forceWithArgument = false);
 	static Result<std::vector<RuntimeTypedExprComponent>, std::runtime_error> _NodeExpressionsEvaluator(std::vector<NodePos> rootNodeExpressions, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency);
 	static void findAndReplaceConstant(NodeFactory::NodePos root, const std::unordered_map<std::string, NodeFactory::NodePos>& replacement);
+	
+	// private evaluator
 	template<RuntimeTypedExprComponentRequired ...Args>
 	Result<RuntimeTypedExprComponent, std::runtime_error> _uncheckedEvaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, Args&&... arguments) const;
 	Result<RuntimeTypedExprComponent, std::runtime_error> _uncheckedEvaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, const LambdaArguments& arguments) const;
+	
+	// type overrider
 	void _overrideType(const RuntimeType& Ret, const RuntimeType& Params);
 	void _overrideType(RuntimeType&& Ret, RuntimeType&& Params);
 
+	// constants
 	inline static const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos> nodeDependencyNull;
 
+	// friends
 	friend class Storage;
 	friend class Evaluate;
 	friend class Parser;
@@ -171,7 +169,7 @@ public:
 	static Storage fromVector(StorageArguments&& storageData);
 	template <RuntimeTypedExprComponentRequired ...Args>
 	static Storage fromArgs(Args &&...storageData);
-	static Result<Storage, std::runtime_error> fromVector(const RuntimeCompoundType& storageType, const StorageArguments& storageData);
+	static Result<Storage, std::runtime_error> fromVector(const RuntimeType& storageType, const StorageArguments& storageData);
 	static Result<Storage, std::runtime_error> fromExpressionNode(NodePos storageRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency);
 	const RuntimeTypedExprComponent& operator[](size_t index) const;
 	const std::vector<RuntimeTypedExprComponent>& getData() const;
@@ -184,11 +182,10 @@ public:
 	static NodePos storageLikeIteratorEnd(NodePos currNodePos); // get end storage iterator, the value of storage like iterator will be on the left Node
 
 private:
-	RuntimeCompoundType::StorageInfo mStorageInfo;
 	StorageArguments mStroageData;
 
-	Storage(const RuntimeCompoundType& storageType, const StorageArguments& storageData);
-	Storage(RuntimeCompoundType&& storageType, StorageArguments&& storageData);
+	Storage(const RuntimeType& storageType, const StorageArguments& storageData);
+	Storage(RuntimeType&& storageType, StorageArguments&& storageData);
 };
 
 // act like a void pointer

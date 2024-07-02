@@ -5,24 +5,20 @@
 #include <format>
 #include "runtimeTypedExprComponent.h"
 
-inline Storage::Storage(const RuntimeCompoundType& storageType, const StorageArguments& storageData) :
+inline Storage::Storage(const RuntimeType& storageType, const StorageArguments& storageData) :
 	BaseRuntimeTypedExprComponent(storageType, NodeFactory::NodePosNull),
-	mStorageInfo{ RuntimeCompoundType::getStorageInfo(storageType) },
 	mStroageData{ storageData } {}
 
-inline Storage::Storage(RuntimeCompoundType&& storageType, StorageArguments&& storageData) :
+inline Storage::Storage(RuntimeType&& storageType, StorageArguments&& storageData) :
 	BaseRuntimeTypedExprComponent(std::move(storageType), NodeFactory::NodePosNull),
-	mStorageInfo{ RuntimeCompoundType::getStorageInfo(storageType) },
 	mStroageData{ std::move(storageData) } {}
 
 inline Storage::Storage(const Storage& other) :
 	BaseRuntimeTypedExprComponent(other.getType(), other._getNodeExpression()),
-	mStorageInfo{ other.mStorageInfo },
 	mStroageData{ other.mStroageData } {}
 
 inline Storage::Storage(Storage&& other) noexcept :
 	BaseRuntimeTypedExprComponent(std::move(other.mType), other._getNodeExpression()),
-	mStorageInfo{ std::move(other.mStorageInfo) },
 	mStroageData{ std::move(other.mStroageData) } {}
 
 inline Storage& Storage::operator=(const Storage& other) {
@@ -30,7 +26,6 @@ inline Storage& Storage::operator=(const Storage& other) {
 		mType = other.getType();
 		mNodeExpression = other._getNodeExpression();
 		mStroageData = other.mStroageData;
-		mStorageInfo = other.mStorageInfo;
 	}
 
 	return *this;
@@ -41,13 +36,12 @@ inline Storage& Storage::operator=(Storage&& other) noexcept {
 		mType = std::move(other.mType);
 		mNodeExpression = other._getNodeExpression();
 		mStroageData = std::move(other.mStroageData);
-		mStorageInfo = std::move(other.mStorageInfo);
 	}
 
 	return *this;
 }
 
-inline Result<Storage, std::runtime_error> Storage::fromVector(const RuntimeCompoundType& storageType, const StorageArguments& storageData) {
+inline Result<Storage, std::runtime_error> Storage::fromVector(const RuntimeType& storageType, const StorageArguments& storageData) {
 	std::vector<RuntimeType> storageDataTypes;
 	storageDataTypes.reserve(storageData.size());
 
@@ -62,7 +56,7 @@ inline Result<Storage, std::runtime_error> Storage::fromVector(const RuntimeComp
 			}, storageArg);
 	}
 
-	if (RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)) != storageType)
+	if (RuntimeType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)) != storageType)
 		return std::runtime_error("Storage argument type and storage configured type not matched.");
 
 	return Storage(storageType, storageData);
@@ -83,7 +77,7 @@ inline Storage Storage::fromVector(const StorageArguments& storageData) {
 			}, storageArg);
 	}
 
-	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(storageDataTypes), storageData);
+	return Storage(RuntimeType::gurantreeNoRuntimeEvaluateStorage(storageDataTypes), storageData);
 }
 
 inline Storage Storage::fromVector(StorageArguments&& storageData) {
@@ -101,11 +95,11 @@ inline Storage Storage::fromVector(StorageArguments&& storageData) {
 			}, storageArg);
 	}
 
-	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)), std::move(storageData));
+	return Storage(RuntimeType::gurantreeNoRuntimeEvaluateStorage(std::move(storageDataTypes)), std::move(storageData));
 }
 
 inline Storage Storage::NullStorage() {
-	return Storage(RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({}), {});
+	return Storage(RuntimeType::gurantreeNoRuntimeEvaluateStorage({}), {});
 }
 
 template <RuntimeTypedExprComponentRequired ...Args>
@@ -129,14 +123,14 @@ inline Storage Storage::fromArgs(Args &&...storageData) {
 			}, storageArg);
 	}
 
-	return Storage(RuntimeCompoundType::Storage(std::move(storageDataTypes)), std::move(tmp));
+	return Storage(RuntimeType::Storage(std::move(storageDataTypes)), std::move(tmp));
 }
 
 inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos storageRootNode, const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodeFactory::NodePos, NodeFactory::NodePos>& nodeDependency) {
 	if (!NodeFactory::validNode(storageRootNode) || NodeFactory::node(storageRootNode).nodeState != NodeFactory::Node::NodeState::Storage)
 		return std::runtime_error("storageRootNode must be valid node with Storage nodestate.");
 
-	Result<RuntimeType, std::runtime_error> storageTypeRaw = getReturnType(storageRootNode, EvaluatorLambdaFunctions, &NodeFactory::getNodesCachedType());
+	Result<RuntimeType, std::runtime_error> storageTypeRaw = getExpressionReturnType(storageRootNode, EvaluatorLambdaFunctions, &NodeFactory::getNodesCachedType());
 	EXCEPT_RETURN(storageTypeRaw);
 
 	if (storageTypeRaw.getValue() == RuntimeBaseType::_Storage)
@@ -161,7 +155,7 @@ inline Result<Storage, std::runtime_error> Storage::fromExpressionNode(NodePos s
 	if (!argumentsResult.getValue().size())
 		return NullStorage();
 
-	return Storage(std::get<RuntimeCompoundType>(storageTypeRaw.getValue()), argumentsResult.moveValue());
+	return Storage(storageTypeRaw.moveValue(), argumentsResult.moveValue());
 }
 
 /**

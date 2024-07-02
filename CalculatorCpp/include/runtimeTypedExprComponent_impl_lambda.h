@@ -11,7 +11,7 @@
 
 inline Lambda::Lambda(const Lambda& other) :
 	BaseRuntimeTypedExprComponent(other.getType(), other._getNodeExpression()),
-	mLambdaInfo{ other.mLambdaInfo },
+	mLambdaParamsTypeSize{ other.getParamsSize() },
 	mLambdaNotation{ other.mLambdaNotation },
 	mLambdaFunction{ other.mLambdaFunction },
 	mLambdaFunctionSignature{ other.mLambdaFunctionSignature } {}
@@ -20,8 +20,8 @@ inline Lambda& Lambda::operator=(const Lambda& other) {
 	if (this != &other) {
 		mType = other.getType();
 		mNodeExpression = other._getNodeExpression();
+		mLambdaParamsTypeSize = other.mLambdaParamsTypeSize;
 		mLambdaNotation = other.mLambdaNotation;
-		mLambdaInfo = other.mLambdaInfo;
 		mLambdaFunction = other.mLambdaFunction;
 		mLambdaFunctionSignature = other.mLambdaFunctionSignature;
 	}
@@ -33,16 +33,16 @@ inline Lambda::Lambda(Lambda&& other) noexcept :
 		std::move(other.mType),
 		other.mNodeExpression
 	),
-	mLambdaInfo(std::move(other.mLambdaInfo)),
-	mLambdaNotation(other.mLambdaNotation),
-	mLambdaFunction(std::move(other.mLambdaFunction)),
-	mLambdaFunctionSignature(std::move(other.mLambdaFunctionSignature)) {}
+	mLambdaParamsTypeSize{ other.mLambdaParamsTypeSize },
+	mLambdaNotation{ other.mLambdaNotation },
+	mLambdaFunction{ std::move(other.mLambdaFunction) },
+	mLambdaFunctionSignature{ std::move(other.mLambdaFunctionSignature) } {}
 
 inline Lambda& Lambda::operator=(Lambda&& other) noexcept {
 	if (this != &other) {
 		mType = std::move(other.mType);
 		mNodeExpression = other._getNodeExpression();
-		mLambdaInfo = std::move(other.mLambdaInfo);
+		mLambdaParamsTypeSize = other.mLambdaParamsTypeSize;
 		mLambdaNotation = other.mLambdaNotation;
 		mLambdaFunction = std::move(other.mLambdaFunction);
 		mLambdaFunctionSignature = std::move(other.mLambdaFunctionSignature);
@@ -52,11 +52,11 @@ inline Lambda& Lambda::operator=(Lambda&& other) noexcept {
 
 inline Lambda::Lambda(
 	const std::string& lambdaFunctionSignature,
-	const RuntimeCompoundType& lambdaType,
+	const RuntimeType& lambdaType,
 	LambdaNotation lambdaNotation,
 	const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction) :
 	BaseRuntimeTypedExprComponent(lambdaType, NodeFactory::NodePosNull),
-	mLambdaInfo{ RuntimeCompoundType::getLambdaInfo(lambdaType) },
+	mLambdaParamsTypeSize{ lambdaType.asLambda().paramsSize() },
 	mLambdaNotation{ lambdaNotation },
 	mLambdaFunction{ std::make_shared<std::function<RuntimeTypedExprComponent(LambdaArguments)>>(lambdaFunction) },
 	mLambdaFunctionSignature{ lambdaFunctionSignature }
@@ -68,11 +68,11 @@ inline Lambda::Lambda(
 
 inline Lambda::Lambda(
 	std::string&& lambdaFunctionSignature,
-	RuntimeCompoundType&& lambdaType,
+	RuntimeType&& lambdaType,
 	LambdaNotation lambdaNotation,
 	std::function<RuntimeTypedExprComponent(LambdaArguments)>&& lambdaFunction) :
 	BaseRuntimeTypedExprComponent(std::move(lambdaType), NodeFactory::NodePosNull),
-	mLambdaInfo{ RuntimeCompoundType::getLambdaInfo(mType) },
+	mLambdaParamsTypeSize{ mType.asLambda().paramsSize() },
 	mLambdaNotation{ lambdaNotation },
 	mLambdaFunction{ std::make_shared<std::function<RuntimeTypedExprComponent(LambdaArguments)>>(std::move(lambdaFunction)) },
 	mLambdaFunctionSignature{ std::move(lambdaFunctionSignature) }
@@ -83,11 +83,11 @@ inline Lambda::Lambda(
 }
 
 inline Lambda::Lambda(
-	const RuntimeCompoundType& lambdaType,
+	const RuntimeType& lambdaType,
 	LambdaNotation lambdaNotation,
 	NodePos lambdaFunctionRootNode) :
 	BaseRuntimeTypedExprComponent(lambdaType, lambdaFunctionRootNode),
-	mLambdaInfo{ RuntimeCompoundType::getLambdaInfo(lambdaType) },
+	mLambdaParamsTypeSize{ lambdaType.asLambda().paramsSize() },
 	mLambdaNotation{ lambdaNotation },
 	mLambdaFunction{ lambdaFunctionRootNode }
 {
@@ -99,37 +99,36 @@ inline Lambda::Lambda(
 
 inline Result<Lambda, std::runtime_error> Lambda::fromFunction(
 	const std::string& lambdaFunctionSignature,
-	const RuntimeCompoundType& lambdaType,
+	const RuntimeType& lambdaType,
 	LambdaNotation lambdaNotation,
 	const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction)
 {
 	// Lambda return type will be check at runtime.
 	if (lambdaNotation == LambdaNotation::Infix &&
-		(lambdaType.Type != RuntimeBaseType::_Lambda ||
-			std::get_if<RuntimeCompoundType>(&lambdaType.Children[1])->Type != RuntimeBaseType::_Storage ||
-			RuntimeCompoundType::_getLambdaParamsNumbers(lambdaType) != 2))
-		return RuntimeError<RuntimeTypeError>(std::format("Lambda Infix LambdaNotation must be a Storage with 2 argument. (cannot be \"{}\")", RuntimeType(lambdaType)), "Lambda::fromFunction");
+		(lambdaType.getBaseType() != RuntimeBaseType::_Lambda ||
+			lambdaType.asLambda().paramsType().getBaseType() != RuntimeBaseType::_Storage ||
+			lambdaType.asLambda().paramsSize() != 2))
+		return RuntimeError<RuntimeTypeError>(std::format("Lambda Infix LambdaNotation must be a Storage with 2 argument. (cannot be \"{}\")", lambdaType), "Lambda::fromFunction");
 	return Lambda(lambdaFunctionSignature, lambdaType, lambdaNotation, lambdaFunction);
 }
 
 inline Result<Lambda, std::runtime_error> Lambda::fromFunction(
 	const std::string& lambdaFunctionSignature,
-	const RuntimeCompoundType& lambdaType,
+	const RuntimeType& lambdaType,
 	LambdaNotation lambdaNotation,
 	const std::function<RuntimeTypedExprComponent(LambdaArguments)>& lambdaFunction,
 	const LambdaArguments& testArgument
 )
 {
 	if (lambdaNotation == LambdaNotation::Infix &&
-		(lambdaType.Type != RuntimeBaseType::_Lambda ||
-			std::get_if<RuntimeCompoundType>(&lambdaType.Children[1])->Type != RuntimeBaseType::_Storage ||
-			RuntimeCompoundType::_getLambdaParamsNumbers(lambdaType) != 2))
+		(lambdaType.getBaseType() != RuntimeBaseType::_Lambda ||
+			lambdaType.asLambda().paramsType().getBaseType() != RuntimeBaseType::_Storage ||
+			lambdaType.asLambda().paramsSize() != 2))
 		return RuntimeError<RuntimeTypeError>(std::format("Lambda Infix LambdaNotation must be a Storage with 2 argument. (cannot be \"{}\")", RuntimeType(lambdaType)), "Lambda::fromFunction");
 
-	const RuntimeType lambdaReturnType{ RuntimeCompoundType::_getLambdaReturnType(lambdaType) };
-	size_t lambdaParamsNumbers{ RuntimeCompoundType::_getLambdaParamsNumbers(lambdaType) };
+	const RuntimeType lambdaReturnType{ lambdaType.asLambda().returnType() };
 
-	if (testArgument.size() == lambdaParamsNumbers) {
+	if (testArgument.size() == lambdaType.asLambda().paramsSize()) {
 		try {
 			RuntimeTypedExprComponent returnValue = lambdaFunction(testArgument);
 			RuntimeType returnType = returnValue.getDetailTypeHold();
@@ -154,7 +153,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromFunction(
 	else
 		return RuntimeError<RuntimeTypeError>(
 			std::format("Cannot construct Lambda, Parameter amount not matched. ({} != {})",
-				lambdaParamsNumbers, testArgument.size()),
+				lambdaType.asLambda().paramsSize(), testArgument.size()),
 			"Lambda::fromFunction"
 		);
 }
@@ -168,7 +167,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 			"Lambda::fromExpressionNode");
 
 	if (NodeFactory::node(lambdaFunctionRootNode).nodeState == NodeFactory::Node::NodeState::LambdaFuntion) {
-		Result<RuntimeType, std::runtime_error>&& returnTypeRaw{ getReturnType(lambdaFunctionRootNode, EvaluatorLambdaFunctions, &NodeFactory::getNodesCachedType()) };
+		Result<RuntimeType, std::runtime_error>&& returnTypeRaw{ getExpressionReturnType(lambdaFunctionRootNode, EvaluatorLambdaFunctions, &NodeFactory::getNodesCachedType()) };
 
 		if (returnTypeRaw.isError())
 			return RuntimeError<RuntimeTypeError>(
@@ -183,7 +182,7 @@ inline Result<Lambda, std::runtime_error> Lambda::fromExpressionNode(
 			parameterTypes.emplace_back(parameterType);
 
 		return Lambda(
-			std::get<RuntimeCompoundType>(returnTypeRaw.getValue()),
+			returnTypeRaw.getValue(),
 			LambdaNotation::Postfix,
 			lambdaFunctionRootNode
 		);
@@ -208,10 +207,10 @@ inline Lambda Lambda::LambdaConstant(std::string&& functionSignature, RuntimeTyp
 {
 	return Lambda(
 		std::move(functionSignature),
-		RuntimeCompoundType::Lambda(constValue.getDetailTypeHold(), RuntimeBaseType::_Storage),
+		RuntimeType::Lambda(constValue.getDetailTypeHold(), RuntimeType::HiddenType::_Storage),
 		LambdaNotation::Constant,
-		[constValue = std::move(constValue)](const LambdaArguments&) {
-			return constValue;
+		[_constValue = std::move(constValue)](const LambdaArguments&) {
+			return _constValue;
 		}
 	);
 }
@@ -220,7 +219,7 @@ inline Lambda Lambda::LambdaConstant(const std::string& functionSignature, const
 {
 	return Lambda(
 		functionSignature,
-		RuntimeCompoundType::Lambda(constValue.getDetailTypeHold(), RuntimeBaseType::_Storage),
+		RuntimeType::Lambda(constValue.getDetailTypeHold(), RuntimeType::HiddenType::_Storage),
 		LambdaNotation::Constant,
 		[constValue](const LambdaArguments&) {
 			return constValue;
@@ -229,8 +228,8 @@ inline Lambda Lambda::LambdaConstant(const std::string& functionSignature, const
 }
 
 inline Result<NodeFactory::NodePos, std::runtime_error> Lambda::getExpressionTree(const LambdaArguments& arguments) const {
-	if (!_fastCheckRuntimeTypeArgumentsType(*mLambdaInfo.ParamsType, arguments))
-		return std::runtime_error(std::format("Lambda parameter and argument not matched. ({} != {})", *mLambdaInfo.ParamsType, Storage::fromVector(arguments).getType()));
+	if (!_fastCheckRuntimeTypeArgumentsType(getType().asLambda().paramsType(), arguments))
+		return std::runtime_error(std::format("Lambda parameter and argument not matched. ({} != {})", getType().asLambda().paramsType(), Storage::fromVector(arguments).getType()));
 
 	if (std::holds_alternative<std::shared_ptr<std::function<RuntimeTypedExprComponent(LambdaArguments)>>>(mLambdaFunction)) {
 		const NodePos operatorNode{ NodeFactory::create(mLambdaFunctionSignature.value()) };
@@ -259,8 +258,16 @@ inline Result<NodeFactory::NodePos, std::runtime_error> Lambda::getExpressionTre
 	return std::get<NodePos>(mLambdaFunction);
 }
 
-inline RuntimeCompoundType::LambdaInfo Lambda::getLambdaInfo() const {
-	return mLambdaInfo;
+inline RuntimeType Lambda::getReturnType() const {
+	return getType().asLambda().returnType();
+}
+
+inline RuntimeType Lambda::getParamsType() const {
+	return getType().asLambda().paramsType();
+}
+
+inline size_t Lambda::getParamsSize() const {
+	return mLambdaParamsTypeSize;
 }
 
 inline std::optional<std::string_view> Lambda::getLambdaSignature() const {
@@ -323,7 +330,7 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_uncheckedE
 		}
 	}
 
-	bool returnValueNeedConstantReplacement = (std::holds_alternative<RuntimeCompoundType>(*mLambdaInfo.ReturnType) && std::get<RuntimeCompoundType>(*mLambdaInfo.ReturnType).Type == RuntimeBaseType::_Lambda);
+	// bool returnValueNeedConstantReplacement{ getType().asLambda().returnType().getBaseType() == RuntimeBaseType::_Lambda };
 
 	std::unordered_map<std::string, Lambda> evaluatorLambdaFunctionsSnapshot(EvaluatorLambdaFunctions);
 	std::unordered_map<std::string, NodePos> parameterConstantsReplacement;
@@ -340,9 +347,9 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_uncheckedE
 		Result<Lambda, std::runtime_error> tempFunc{
 			Lambda::fromFunction(
 				parameters[ind].first,
-				RuntimeCompoundType::Lambda(
+				RuntimeType::Lambda(
 					parameters[ind].second,
-					RuntimeBaseType::_Storage
+					 RuntimeType::HiddenType::_Storage
 				),
 				Lambda::LambdaNotation::Constant,
 				constLambda
@@ -359,15 +366,17 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_uncheckedE
 				"Lambda::evaluate"
 			);
 
-		if (returnValueNeedConstantReplacement)
-			parameterConstantsReplacement.try_emplace(parameters[ind].first, arguments[ind].toNodeExpression());
+		//if (returnValueNeedConstantReplacement) {
+		//	std::cout << "replace constant\n";
+		//	parameterConstantsReplacement.try_emplace(parameters[ind].first, arguments[ind].toNodeExpression());
+		//}
 
 		evaluatorLambdaFunctionsSnapshot.try_emplace(parameters[ind].first, tempFunc.moveValue());
 	}
 
-	if (returnValueNeedConstantReplacement) {
-		findAndReplaceConstant(std::get<NodePos>(mLambdaFunction), parameterConstantsReplacement);
-	}
+	//if (returnValueNeedConstantReplacement) {
+	//	findAndReplaceConstant(std::get<NodePos>(mLambdaFunction), parameterConstantsReplacement);
+	//}
 	Result<RuntimeTypedExprComponent, std::runtime_error>&& res{
 		_NodeExpressionEvaluate(
 			std::get<NodePos>(mLambdaFunction),
@@ -393,43 +402,41 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_uncheckedE
 }
 
 inline void Lambda::_overrideType(RuntimeType&& Ret, RuntimeType&& Params) {
-	mType = RuntimeCompoundType::Lambda(std::move(Ret), std::move(Params));
-	mLambdaInfo = RuntimeCompoundType::getLambdaInfo(mType);
+	mType = RuntimeType::Lambda(std::move(Ret), std::move(Params));
 }
 
 inline void Lambda::_overrideType(const RuntimeType& Ret, const RuntimeType& Params) {
-	mType = RuntimeCompoundType::Lambda(Ret, Params);
-	mLambdaInfo = RuntimeCompoundType::getLambdaInfo(mType);
+	mType = RuntimeType::Lambda(Ret, Params);
 }
 
 inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::evaluate(const std::unordered_map<std::string, Lambda>& EvaluatorLambdaFunctions, const std::unordered_map<NodePos, NodePos>& nodeDependency, const LambdaArguments& arguments) const {
-	if (arguments.size() != mLambdaInfo.ParamsNumbers)
+	if (arguments.size() != getParamsSize())
 		return RuntimeError<RuntimeTypeError>(
 			std::format(
 				"Lambda parameter and argument amount not matched. ({} != {})",
-				mLambdaInfo.ParamsNumbers,
+				getParamsSize(),
 				arguments.size()
 			),
 			"Lambda::evaluate"
 		);
 
 	if (arguments.size() == 1) {
-		if (*mLambdaInfo.ParamsType != arguments[0].getDetailTypeHold())
+		if (getParamsType() != arguments[0].getDetailTypeHold())
 			return RuntimeError<RuntimeTypeError>(
 				std::format(
 					"Lambda parameter and argument type not matched ({} != {}).",
-					*mLambdaInfo.ParamsType,
+					getParamsType(),
 					arguments[0].getDetailTypeHold()
 				),
 				"Lambda::evaluate"
 			);
 	}
 
-	else if (mLambdaInfo.ParamsNumbers && !_fastCheckRuntimeTypeArgumentsType(*mLambdaInfo.ParamsType, arguments))
+	else if (getParamsSize() && !_fastCheckRuntimeTypeArgumentsType(getParamsType(), arguments))
 		return RuntimeError<RuntimeTypeError>(
 			std::format(
 				"Lambda parameter and argument type not matched ({} != {}).",
-				*mLambdaInfo.ParamsType,
+				getParamsType(),
 				Storage::fromVector(arguments).getType()
 			),
 			"Lambda::evaluate"
@@ -668,30 +675,32 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode->value) };
 
-			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
-				if (const auto& parametersType{ RuntimeCompoundType::getStorageInfo(*lambdaFunction.getLambdaInfo().ParamsType).Storage };
-					parametersType->size() != 1)
+			if (lambdaFunction.getParamsType().getBaseType() != RuntimeBaseType::_Stroage_Any) {
+				if (lambdaFunction.getParamsSize() != 1)
 				{
+					StorageTypeLookUp parametersType{ lambdaFunction.getParamsType().asStorage() };
+					RuntimeType firstParameter{ parametersType.at(0) };
+					RuntimeType secondParameter{ parametersType.at(1) };
+
 					// implicit convert to nodePointer
-					if ((*parametersType)[0] == RuntimeBaseType::NodePointer)
+					if (firstParameter == RuntimeType::NodePointer)
 						leftVal = NodePointer(leftVal.toNodeExpression());
 
 					// implicit convert to nodePointer
-					if ((*parametersType)[1] == RuntimeBaseType::NodePointer)
+					if (secondParameter == RuntimeType::NodePointer)
 						rightVal = NodePointer(rightVal.toNodeExpression());
 
-					if (!((*parametersType)[0] == leftVal.getDetailTypeHold() &&
-						(*parametersType)[1] == rightVal.getDetailTypeHold()))
+					if (!(firstParameter == leftVal.getDetailTypeHold() &&
+						secondParameter == rightVal.getDetailTypeHold()))
 						return RuntimeError<RuntimeTypeError>(
 							std::format(
 								"Parameters type must be same as to argument type. ({} != {})",
-								*lambdaFunction.getLambdaInfo().ParamsType,
-								RuntimeType(
-									RuntimeCompoundType::gurantreeNoRuntimeEvaluateStorage({
-										leftVal.getDetailTypeHold(),
-										rightVal.getDetailTypeHold()
-										})
-								)
+								lambdaFunction.getParamsType(),
+								RuntimeType::gurantreeNoRuntimeEvaluateStorage({
+									leftVal.getDetailTypeHold(),
+									rightVal.getDetailTypeHold()
+									})
+
 							),
 							"Lambda::_NodeExpressionEvaluate"
 						);
@@ -726,16 +735,17 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			RuntimeTypedExprComponent&& rightVal{ std::move(resultMap[currNode->rightPos].value()) };
 			const Lambda& lambdaFunction = EvaluatorLambdaFunctions.at(currNode->value);
 
-			if (*lambdaFunction.getLambdaInfo().ParamsType != RuntimeBaseType::_Stroage_Any) {
+			if (RuntimeType paramsType{ lambdaFunction.getParamsType() };
+				paramsType != RuntimeType::HiddenType::_Stroage_Any) {
 				// implicit convert to nodePointer
-				if (*lambdaFunction.getLambdaInfo().ParamsType == RuntimeBaseType::NodePointer)
+				if (paramsType == RuntimeBaseType::NodePointer)
 					rightVal = NodePointer(rightVal.toNodeExpression());
 
-				if (*lambdaFunction.getLambdaInfo().ParamsType != rightVal.getDetailTypeHold())
+				if (paramsType != rightVal.getDetailTypeHold())
 					return RuntimeError<RuntimeTypeError>(
 						std::format(
 							"Parameters type must be equal to argument type. ({} != {})",
-							*lambdaFunction.getLambdaInfo().ParamsType,
+							paramsType,
 							rightVal.getDetailTypeHold()
 						),
 						"Lambda::_NodeExpressionEvaluate"
@@ -770,14 +780,14 @@ inline Result<RuntimeTypedExprComponent, std::runtime_error> Lambda::_NodeExpres
 			const Lambda& lambdaFunction{ EvaluatorLambdaFunctions.at(currNode->value) };
 
 			// implicit convert to nodePointer
-			if (*lambdaFunction.getLambdaInfo().ParamsType == RuntimeBaseType::NodePointer)
+			if (lambdaFunction.getParamsType() == RuntimeType::NodePointer)
 				leftVal = NodePointer(leftVal.toNodeExpression());
 
-			if (*lambdaFunction.getLambdaInfo().ParamsType != leftVal.getDetailTypeHold())
+			if (lambdaFunction.getParamsType() != leftVal.getDetailTypeHold())
 				return RuntimeError<RuntimeTypeError>(
 					std::format(
 						"Parameters type must be equal to argument type. ({} != {})",
-						*lambdaFunction.getLambdaInfo().ParamsType,
+						lambdaFunction.getParamsType(),
 						leftVal.getDetailTypeHold()
 					)
 				);

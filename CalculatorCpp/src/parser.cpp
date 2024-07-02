@@ -236,11 +236,10 @@ Result<std::optional<std::string>, std::runtime_error> Parser::processIfReturnLa
 	if (NodeFactory::node(possibleReturnedLambdaNode).nodeState != NodeFactory::Node::NodeState::Operator || !EvaluatorLambdaFunction.contains(NodeFactory::node(possibleReturnedLambdaNode).value))
 		return Result<std::optional<std::string>, std::runtime_error>(std::nullopt);
 
-	std::shared_ptr<RuntimeType> lambdaReturnedType{ EvaluatorLambdaFunction.at(NodeFactory::node(possibleReturnedLambdaNode).value).getLambdaInfo().ReturnType };
-	if (const RuntimeCompoundType* lambdaReturnTypeAsCompoundType{ std::get_if<RuntimeCompoundType>(lambdaReturnedType.get()) };
-		!lambdaReturnTypeAsCompoundType || (lambdaReturnTypeAsCompoundType->Type != RuntimeBaseType::_Lambda &&
-			(static_cast<int8_t>(lambdaReturnTypeAsCompoundType->Type) <= 3 ||
-				lambdaReturnTypeAsCompoundType->Type == RuntimeBaseType::_Stroage_Any)))
+	RuntimeType lambdaReturnedType{ EvaluatorLambdaFunction.at(NodeFactory::node(possibleReturnedLambdaNode).value).getReturnType() };
+	if (lambdaReturnedType.getBaseType() != RuntimeBaseType::_Lambda &&
+			(static_cast<uint8_t>(lambdaReturnedType.getBaseType()) <= 3 /*||
+				lambdaReturnTypeAsCompoundType->Type == RuntimeBaseType::_Stroage_Any*/))
 	{
 		return Result<std::optional<std::string>, std::runtime_error>(std::nullopt);
 	}
@@ -255,7 +254,7 @@ Result<std::optional<std::string>, std::runtime_error> Parser::processIfReturnLa
 
 	Lambda lambdaFunction{ Lambda::LambdaConstant(generatedReturnedLambdaName, NodeFactory::NodePosNull) };
 
-	switch (std::get<RuntimeCompoundType>(*lambdaReturnedType).Type)
+	switch (lambdaReturnedType.getBaseType())
 	{
 		using LambdaNotation = Lambda::LambdaNotation;
 	case RuntimeBaseType::_Lambda:
@@ -279,10 +278,10 @@ Result<std::optional<std::string>, std::runtime_error> Parser::processIfReturnLa
 		unreachable();
 	}
 
-	assert(std::get<RuntimeCompoundType>(*lambdaReturnedType).Children.size());
+	//assert(lambdaReturnedType.lookUpChildren().end()); // TODO: add assertion 
 	lambdaFunction._overrideType(
-		std::get<RuntimeCompoundType>(*lambdaReturnedType).Children.front(),
-		RuntimeBaseType::_Stroage_Any // storage any is not normaly allow as parameter, this is for evaluator to know if this function will allow any parameters type in parsedtime. (check at runtime)
+		lambdaReturnedType.lookUpChildren().begin().toRuntimeType(),
+		RuntimeType::HiddenType::_Stroage_Any // storage any is not normaly allow as parameter, this is for evaluator to know if this function will allow any parameters type in parsedtime. (check at runtime)
 	);
 
 	mEvaluatorLambdaFunction.insert_or_assign(generatedReturnedLambdaName, lambdaFunction);
@@ -563,7 +562,7 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 					NodeFactory::create(operatorNodeValue) };
 				EXCEPT_RETURN(operatorNode);
 
-				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getReturnType(operatorNode.getValue(), mEvaluatorLambdaFunction, &cachedNodeTypes) };
+				Result<RuntimeType, std::runtime_error> operatorNodeReturnTypeResult{ getExpressionReturnType(operatorNode.getValue(), mEvaluatorLambdaFunction, &cachedNodeTypes) };
 				EXCEPT_RETURN(operatorNodeReturnTypeResult);
 
 				if (NodeFactory::NodePos topStackLambdaFunction{ resultStack.size() && lambdaHeadNodes.contains(resultStack.top()) ? lambdaHeadNodes.at(resultStack.top()) : NodeFactory::NodePosNull };
@@ -576,21 +575,20 @@ Result<std::vector<NodeFactory::NodePos>> Parser::createOperatorTree(const std::
 					NodeFactory::NodePos extractedOperatorNode{ operatorNode.getValue() };
 
 					// Check if the type is _Storage and there is exactly one child
-					if (RuntimeCompoundType* operatorNodeReturnTypeRuntimeCompoundType{ std::get_if<RuntimeCompoundType>(&extractedOperatorNodeReturnTypeRuntimeType) };
-						operatorNodeReturnTypeRuntimeCompoundType && operatorNodeReturnTypeRuntimeCompoundType->Type == RuntimeBaseType::_Storage &&
-						operatorNodeReturnTypeRuntimeCompoundType->Children.size() == 1) {
+					if (extractedOperatorNodeReturnTypeRuntimeType.getBaseType() == RuntimeBaseType::_Storage &&
+						extractedOperatorNodeReturnTypeRuntimeType.asStorage().size() == 1) {
 						// Set the final RuntimeType to the single child
-						auto firstChildOperatorNodeReturnRuntimeType{ operatorNodeReturnTypeRuntimeCompoundType->Children[0] };
+						auto firstChildOperatorNodeReturnRuntimeType{ extractedOperatorNodeReturnTypeRuntimeType.asStorage().at(0)};
 						extractedOperatorNodeReturnTypeRuntimeType = std::move(firstChildOperatorNodeReturnRuntimeType);
 						extractedOperatorNode = getLambdaHeadNodeIfIsLambda(NodeFactory::node(extractedOperatorNode).leftPos, lambdaHeadNodes);
 					}
 
-					if (RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(cachedNodeTypes.at(topStackLambdaFunction))) != extractedOperatorNodeReturnTypeRuntimeType)
+					if (cachedNodeTypes.at(topStackLambdaFunction).asLambda().paramsType() != extractedOperatorNodeReturnTypeRuntimeType)
 						return RuntimeError<ParserSyntaxError>(
 							std::format(
 								"Lambda at nodeExpression {}, Lambda type {} not match with argument node {} with {} type.",
 								topStackLambdaFunction,
-								RuntimeCompoundType::_getLambdaParamsType(std::get<RuntimeCompoundType>(cachedNodeTypes.at(topStackLambdaFunction))),
+								cachedNodeTypes.at(topStackLambdaFunction).asLambda().paramsType(),
 								extractedOperatorNode,
 								extractedOperatorNodeReturnTypeRuntimeType
 							)
@@ -843,7 +841,7 @@ std::optional<std::runtime_error> Parser::getLambdaType(std::vector<std::pair<st
 		}
 
 		else {
-			Result<RuntimeType, std::runtime_error> parsedRuntimeTypedResult{ RuntimeCompoundType::ParseString(matches[2]) };
+			Result<RuntimeType, std::runtime_error> parsedRuntimeTypedResult{ RuntimeType::ParseString(matches[2]) };
 
 			if (parsedRuntimeTypedResult.isError())
 				return RuntimeError<ParserSyntaxError>(
@@ -980,7 +978,7 @@ static std::string _printOpertatorTree(NodeFactory::NodePos tree, const std::uno
 		if (_level) {
 			result << ColorText<Color::Yellow>("<");
 			for (size_t i{ 0 }, par{ parameters.size() }, arg{ arguments.size() }, len{ std::max(par, arg) }; i < len; i++)
-				result << ColorText<Color::Bright_Magenta>((i < par) ? parameters[i].first : "null") << ColorText<Color::Yellow>(":") << (ColorText<Color::Bright_Yellow>(RuntimeTypeToString((i < par) ? parameters[i].second : RuntimeBaseType::_Storage))) << ((i != len - 1) ? ColorText<Color::Cyan>(", ") : "");
+				result << ColorText<Color::Bright_Magenta>((i < par) ? parameters[i].first : "null") << ColorText<Color::Yellow>(":") << (ColorText<Color::Bright_Yellow>(((i < par) ? parameters[i].second : RuntimeBaseType::_Storage).toString())) << ((i != len - 1) ? ColorText<Color::Cyan>(", ") : "");
 			result << ColorText<Color::Yellow>(">");
 		}
 
@@ -1097,7 +1095,7 @@ std::string Parser::printOpertatorTree(std::vector<NodeFactory::NodePos> trees, 
 
 			result << ColorText<Color::Yellow>("<");
 			for (size_t i{ 0 }, par{ parameters.size() }, arg{ arguments.size() }, len{ std::max(par, arg) }; i < len; i++) {
-				result << ColorText<Color::Bright_Magenta>((i < par) ? parameters[i].first : "null") << ColorText<Color::Yellow>(":") << (ColorText<Color::Bright_Yellow>(RuntimeTypeToString((i < par) ? parameters[i].second : RuntimeBaseType::_Storage))) << (arg ? (ColorText<Color::Yellow>("(") + ((i < arg) ? _printOpertatorTree(arguments[i], mEvaluatorLambdaFunction, 0) : "null") + ColorText<Color::Yellow>(")")) : "") << ((i != len - 1) ? ColorText<Color::Cyan>(", ") : "");
+				result << ColorText<Color::Bright_Magenta>((i < par) ? parameters[i].first : "null") << ColorText<Color::Yellow>(":") << (ColorText<Color::Bright_Yellow>(((i < par) ? parameters[i].second : RuntimeBaseType::_Storage).toString())) << (arg ? (ColorText<Color::Yellow>("(") + ((i < arg) ? _printOpertatorTree(arguments[i], mEvaluatorLambdaFunction, 0) : "null") + ColorText<Color::Yellow>(")")) : "") << ((i != len - 1) ? ColorText<Color::Cyan>(", ") : "");
 			}
 			result << ColorText<Color::Yellow>(">");
 			result << _printOpertatorTree(NodeFactory::node(root).leftPos, mEvaluatorLambdaFunction, 0) << ((ind != evalutationResults.size() - 1) ? ColorText<Color::Cyan>(", ") : "");

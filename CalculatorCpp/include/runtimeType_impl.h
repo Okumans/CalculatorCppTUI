@@ -1,3 +1,6 @@
+#include "runtimeType_demo_impl.h"
+
+#if false
 #ifndef RUNTIMETYPE_IMPL
 #define RUNTIMETYPE_IMPL
 
@@ -536,3 +539,4 @@ template <> struct std::formatter<RuntimeType> : std::formatter<std::string> {
 };
 
 #endif // RUNTIMETYPE_IMPL
+#endif

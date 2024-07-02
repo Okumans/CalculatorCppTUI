@@ -353,5 +353,11 @@
     <ClInclude Include="include\runtimeTypedExprComponent_impl_nodePointer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\runtimeType_demo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\runtimeType_demo_impl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
